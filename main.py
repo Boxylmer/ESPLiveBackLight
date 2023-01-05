@@ -1,5 +1,6 @@
 # known working on python version 3.8.0
 
+
 import threading
 from PIL import Image
 import numpy as np
@@ -12,11 +13,11 @@ import mss
 import mss.tools
 sct = mss.mss()
 
-# monitor = sct.monitors[3]
-# TOP = (monitor["left"], monitor["top"], monitor["width"],monitor["height"])
-# scr_top = sct.grab(TOP)
-# img = Image.frombytes("RGB", scr_top.size, scr_top.bgra, "raw", "BGRX")
-# img.show()
+monitor = sct.monitors[1]
+TOP = (monitor["left"], monitor["top"], 0,monitor["height"])
+scr_top = sct.grab(TOP)
+img = Image.frombytes("RGB", scr_top.size, scr_top.bgra, "raw", "BGRX")
+img.show()
 
     
 
@@ -26,8 +27,8 @@ REFRESH_TIME_MS = 200
 GUI_POLLING_TIME_MS = 20
 
 def find_monitor_ids():
-    # return [*range(1, len(sct.monitors))]
-    return [0]
+    return [*range(1, len(sct.monitors))]
+    # return [0]
 
 class MonitorBorderPixValues:
     def __init__(self, pixel_height, pixel_width, monitor_id):
@@ -162,7 +163,7 @@ for monitor_id in find_monitor_ids():
 
     canvases.append(tk.Canvas(mframe))
     canvases[-1].pack(fill="both", expand=True)
-    mbpvs.append(MonitorBorderPixValues(20, 40, 1))
+    mbpvs.append(MonitorBorderPixValues(20, 40, monitor_id))
     
     grids.append(CanvasGrid(canvases[-1], mbpvs[-1]))
 
