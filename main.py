@@ -123,9 +123,12 @@ class CanvasGrid:
 #### make tkinter gui
 window = tk.Tk()
 window.title("Boxman Fiddlejig")
-greeting = tk.Label(text="Hello, Tkinter")
-greeting.pack()
-
+ipframe = tk.Frame(window)
+ipentry = tk.Entry(ipframe)
+ipentry.grid(row=0, column=1)
+urllabel = tk.Label(ipframe, text="Device URL:")
+urllabel.grid(row=0, column=0)
+ipframe.pack()
 canvases = []  # we might not need to save these just yet
 mbpvs = []
 grids = []
@@ -134,10 +137,24 @@ widths_input_fields = []
 heights_input_fields = []
 
 for monitor_id in find_monitor_ids():
-    canvases.append(tk.Canvas())
+    frame = tk.Frame(window)
+    sframe = tk.Frame(frame)
+    mframe = tk.Frame(frame)
+    sframe.pack()
+    mframe.pack(fill="both", expand=True)
+
+    t = tk.Label(sframe,text="Active", font=('Helvetica 12 bold'))
+    t.grid(row=0, column=0, columnspan=3)
+    monitor_active_buttons.append(tk.Checkbutton(sframe))
+    monitor_active_buttons[-1].grid(row=0, column=4)
+
+    canvases.append(tk.Canvas(mframe))
     canvases[-1].pack(fill="both", expand=True)
     mbpvs.append(MonitorBorderPixValues(20, 40, 1))
+    
     grids.append(CanvasGrid(canvases[-1], mbpvs[-1]))
+
+    frame.pack(fill="both", expand=True, anchor=tk.S)
     
 
 # load the save file and set default values
