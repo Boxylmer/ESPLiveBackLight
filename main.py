@@ -10,12 +10,22 @@ import mss
 import mss.tools
 sct = mss.mss()
 
+# monitor = sct.monitors[3]
+# TOP = (monitor["left"], monitor["top"], monitor["width"],monitor["height"])
+# scr_top = sct.grab(TOP)
+# img = Image.frombytes("RGB", scr_top.size, scr_top.bgra, "raw", "BGRX")
+# img.show()
+
+    
+
+
 WINDOW_BORDER_FRACTION = 0.05
 REFRESH_TIME_MS = 200
 GUI_POLLING_TIME_MS = 20
 
 def find_monitor_ids():
-    return [*range(1, len(sct.monitors))]
+    # return [*range(1, len(sct.monitors))]
+    return [0]
 
 class MonitorBorderPixValues:
     def __init__(self, pixel_height, pixel_width, monitor_id):
