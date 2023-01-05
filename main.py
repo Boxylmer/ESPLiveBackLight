@@ -1,3 +1,5 @@
+# known working on python version 3.8.0
+
 import threading
 from PIL import Image
 import numpy as np
