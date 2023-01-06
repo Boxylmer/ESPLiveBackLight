@@ -36,6 +36,10 @@ def top_right_corner(id):
 def bottom_right_corner(id):
     return sct.monitors[id]["left"] + sct.monitors[id]["width"], sct.monitors[id]["top"] + sct.monitors[id]["height"]
 
+
+
+
+
 class MonitorOrchestrator:
     PX_TOLERANCE = 100 # n-pixels for monitor borders to be considered touching
     MONITOR_LIMIT = 50
@@ -48,13 +52,16 @@ class MonitorOrchestrator:
         self.first_monitor_id = self.monitor_ids[self._first_monitor_idx()]
         self.monitor_id_to_grid_position = self._find_monitor_grid_positions()
         self.grid_position_to_monitor_id = {value: key for key, value in self.monitor_id_to_grid_position.items()} # this only works for dicts with guaranteed unique values
+        
+        self.path_mode = 'all' # or 'border'
 
+        # border info
         self.border_monitor_path, \
             self.border_edge_path, \
-            self.id_and_side_to_order_dict, \
-            self.order_to_id_and_side_dict = \
+            self.id_and_side_to_border_order_dict, \
+            self.border_order_to_id_and_side_dict = \
             self._generate_monitor_side_path(self.first_monitor_id, first_edge='d')
-        print(self.border_monitor_path, self.border_edge_path, self.id_and_side_to_order_dict, self.order_to_id_and_side_dict)
+        print(self.border_monitor_path, self.border_edge_path, self.id_and_side_to_border_order_dict, self.border_order_to_id_and_side_dict)
 
     def _top_left_corner(self, border):
         return top_left_corner(border.monitor_id)
@@ -212,6 +219,10 @@ class MonitorOrchestrator:
     # def _generate_grid_position_and_direction_to_order_dict():
     #     pass
 
+    #setters and commands
+
+    def set_path_mode(self, mode): 
+        self.path_mode = mode
 
     #getters
 
@@ -219,16 +230,30 @@ class MonitorOrchestrator:
         return self.monitor_id_to_grid_position[id]
 
     def get_order_of_edge(self, monitor_id, side):
-        key = (monitor_id, side)
-        if key in self.id_and_side_to_order_dict:
-            return self.id_and_side_to_order_dict[key]
+        if self.path_mode == 'border':
+            key = (monitor_id, side)
+            if key in self.id_and_side_to_border_order_dict:
+                return self.id_and_side_to_border_order_dict[key]
+            else:
+                return None
+        elif self.path_mode == 'all':
+            pass
         else:
-            return None
+            raise Exception("Invalid mode")
 
     def get_id_and_edge_from_order(self, order):
-        return self.order_to_id_and_side_dict[order]
+        if self.path_mode == 'border':
+            return self.border_order_to_id_and_side_dict[order]
+        elif self.path_mode == 'all':
+            pass
+        else:
+            raise Exception("Invalid mode")
 
-    def get_num_edges(self): return len(self.order_to_id_and_side_dict)
+    def get_num_edges(self): 
+        if self.path_mode == 'border':
+            return len(self.border_order_to_id_and_side_dict)
+        elif self.path_mode == 'all':
+            return len(self.monitor_ids) * 4
 
 class MonitorBorderPixels:
     def __init__(self, pixel_height, pixel_width, monitor_id):
@@ -392,16 +417,14 @@ window = tk.Tk()
 window.title("Boxman Fiddlejig")
 
 optionsframe = tk.Frame(window)
-edge_mode_var = tk.IntVar()
-edge_mode_check = tk.Checkbutton(optionsframe, variable=edge_mode_var, text="Send only to edges", font=('Helvetica 12 bold'))
-edge_mode_check.pack(side=tk.LEFT)
-optionsframe.pack(expand=False)
 
-def get_edgemode_checkbox():
+### TK variables to be used globally 
+edge_mode_var = tk.IntVar()
+def toggle_orchestrator_mode():
     if edge_mode_var.get() == 1:
-        return True
+        orchestrator.set_path_mode('border')
     else:
-        return False
+        orchestrator.set_path_mode('all')
 
 def set_edgemode_checkbox(checked):
     if checked == True:
@@ -411,6 +434,11 @@ def set_edgemode_checkbox(checked):
         edge_mode_var.set(0)
         return
     else: raise Exception("Invalid input!")
+
+edge_mode_check = tk.Checkbutton(optionsframe, variable=edge_mode_var, command=toggle_orchestrator_mode, text="Send only to edges", font=('Helvetica 12 bold'))
+edge_mode_check.pack(side=tk.LEFT)
+optionsframe.pack(expand=False)
+
 
 
 canvases = []  # we might not need to save these just yet
