@@ -18,11 +18,9 @@ sct = mss.mss()
 # img = Image.frombytes("RGB", scr_top.size, scr_top.bgra, "raw", "BGRX")
 # img.show()
 
-    
 
-
-WINDOW_BORDER_FRACTION = 0.05
-REFRESH_TIME_MS = 300
+WINDOW_BORDER_FRACTION = 0.01
+REFRESH_TIME_MS = 200
 GUI_POLLING_TIME_MS = 50
 
 def find_monitor_ids():
@@ -40,16 +38,19 @@ def bottom_right_corner(id):
 
 class MonitorOrchestrator:
     PX_TOLERANCE = 100 # n-pixels for monitor borders to be considered touching
-    
+    MONITOR_LIMIT = 50
+
+
     def __init__(self, monitor_borders):
         self.monitor_borders = monitor_borders
         self.monitor_ids = [b.monitor_id for b in monitor_borders]
-        print(self.monitor_ids)
-        self.grid_positions = self._find_monitor_grid_positions()
-    # def _get_monitor_xy_from_id(self, id):
-    #     return sct.monitors[id]["left"], sct.monitors[id]["top"]
 
+        self.first_monitor_id = self.monitor_ids[self._first_monitor_idx()]
+        self.monitor_id_to_grid_position = self._find_monitor_grid_positions()
+        self.grid_position_to_monitor_id = {value: key for key, value in self.monitor_id_to_grid_position.items()} # this only works for dicts with guaranteed unique values
 
+        self.border_monitor_path, self.border_edge_path = self._generate_monitor_side_path(self.first_monitor_id, first_edge='d')
+        print(self.border_monitor_path, self.border_edge_path)
 
     def _top_left_corner(self, border):
         return top_left_corner(border.monitor_id)
@@ -66,6 +67,7 @@ class MonitorOrchestrator:
     def _dist(self, pt1, pt2):
         return ((pt1[0] - pt2[0])**2 + (pt1[1] - pt2[1])**2)**0.5
 
+    # todo this may be arbitrary
     def _first_monitor_idx(self):
         target = bottom_left_corner(0)  # farthest bottom left of the virtual monitor
         best_distance = self._dist(target, top_right_corner(0))  # naieve initial target that, by definition, must be higher than any corner
@@ -79,7 +81,6 @@ class MonitorOrchestrator:
         # print(best_candidate_idx)
         return best_candidate_idx
 
-        
     def _find_monitor_grid_positions(self):
         naive_first_position_idx = self._first_monitor_idx()
         naive_first_id = self.monitor_borders[naive_first_position_idx].monitor_id
@@ -131,20 +132,75 @@ class MonitorOrchestrator:
         ids_to_position = {}
         for pid in naive_ids_to_position.keys():
             # shift everything up and flip x and y
-            ids_to_position[pid] = (naive_ids_to_position[pid][1] - lowesty) , naive_ids_to_position[pid][0] - lowestx
+            ids_to_position[pid] = naive_ids_to_position[pid][0] - lowestx,(naive_ids_to_position[pid][1] - lowesty) 
         print(ids_to_position)
         # raise(Exception("---"))
         return ids_to_position
 
-    def _generate_monitor_side_path(self):
-        pass
+    def _rotate_edge_symbol(self, edge_position, direction='clockwise'):
+        if direction == 'clockwise':
+            if edge_position == 'd': return 'l'
+            elif edge_position == 'l': return 'u'
+            elif edge_position == 'u': return 'r'
+            elif edge_position == 'r': return 'd'
+            else: raise Exception("Invalid edge face symbol!")
+        elif direction == 'counterclockwise':
+            if edge_position == 'd': return 'r'
+            elif edge_position == 'r': return 'u'
+            elif edge_position == 'u': return 'l'
+            elif edge_position == 'l': return 'd'
+            else: raise Exception("Invalid edge face symbol!")
+        else: raise Exception("Invalid direction!")
 
+    def _get_position_in_direction(self, grid_position, edge_position):
+        if edge_position == 'd':
+            return (grid_position[0] + 0, grid_position[1] + 1)
+        elif edge_position == 'l':
+            return (grid_position[0] - 1, grid_position[1] + 0)
+        elif edge_position == 'u':
+                return (grid_position[0] + 0, grid_position[1] - 1)
+        elif edge_position == 'r':
+                return (grid_position[0] + 1, grid_position[1] + 0)
+        else: raise Exception("Invalid edge position!")
+
+    def _has_neighbor_in_direction(self, grid_position, edge_position):
+        neighboring_position = self._get_position_in_direction(grid_position, edge_position)
+        for possible_neighbor_position in self.monitor_id_to_grid_position.values():
+            if neighboring_position == possible_neighbor_position: return True
+        return False
+
+    def _traverse_grid_border(self, monitor_id, current_edge_position, direction='clockwise'):
+        grid_position = self.monitor_id_to_grid_position[monitor_id]
+        if direction == 'clockwise':
+            candidate_edge_position = self._rotate_edge_symbol(current_edge_position, direction='clockwise')
+            for _ in range(MonitorOrchestrator.MONITOR_LIMIT):
+                print(grid_position, candidate_edge_position)
+                if self._has_neighbor_in_direction(grid_position, candidate_edge_position):
+                    grid_position = self._get_position_in_direction(grid_position, candidate_edge_position)
+                    candidate_edge_position = self._rotate_edge_symbol(candidate_edge_position, direction='counterclockwise')
+                else:
+                    return self.grid_position_to_monitor_id[grid_position], candidate_edge_position
+            raise Exception("Pathing failed, is a monitor (exclusively) diagonal in your setup?")
+        elif direction == 'counterclockwise':
+            raise Exception("the dev is lazy and didn't write this because it didn't end up being necessary")
+
+    def _generate_monitor_side_path(self, first_monitor_id, first_edge='d'):
+        monitor_id_path = [first_monitor_id]
+        edge_path = [first_edge]
+        for _ in range(MonitorOrchestrator.MONITOR_LIMIT * 4):
+            next_monitor_path, next_edge_path = self._traverse_grid_border(monitor_id_path[-1], edge_path[-1])
+            if (monitor_id_path[0] == next_monitor_path and edge_path[0] == next_edge_path):
+                break
+            else:
+                monitor_id_path.append(next_monitor_path)
+                edge_path.append(next_edge_path)
+        return monitor_id_path, edge_path
 
 
     #getters
 
     def get_monitor_grid_position_by_id(self, id):
-        return self.grid_positions[id]
+        return self.monitor_id_to_grid_position[id]
 
 
 class MonitorBorderPixels:
@@ -276,16 +332,32 @@ for i, monitor_id in enumerate(monitor_ids):
     mbps.append(MonitorBorderPixels(20, 40, monitor_id))
 orchestrator = MonitorOrchestrator(mbps)
 
-
 #### make tkinter gui
 window = tk.Tk()
 window.title("Boxman Fiddlejig")
-# ipframe = tk.Frame(window)
-# ipentry = tk.Entry(ipframe)
-# ipentry.grid(row=0, column=1)
-# urllabel = tk.Label(ipframe, text="Device URL:")
-# urllabel.grid(row=0, column=0)
-# ipframe.pack()
+
+optionsframe = tk.Frame(window)
+edge_mode_var = tk.IntVar()
+edge_mode_check = tk.Checkbutton(optionsframe, variable=edge_mode_var, text="Send only to edges", font=('Helvetica 12 bold'))
+edge_mode_check.pack(side=tk.LEFT)
+optionsframe.pack(expand=False)
+
+def get_edgemode_checkbox():
+    if edge_mode_var.get() == 1:
+        return True
+    else:
+        return False
+
+def set_edgemode_checkbox(checked):
+    if checked == True:
+        edge_mode_var.set(1)
+        return
+    elif checked == False:
+        edge_mode_var.set(0)
+        return
+    else: raise Exception("Invalid input!")
+
+
 canvases = []  # we might not need to save these just yet
 
 grids = []
@@ -293,28 +365,19 @@ monitor_active_buttons = []
 widths_input_fields = []
 heights_input_fields = []
 
+monitorframe = tk.Frame(window)
 for i, monitor_id in enumerate(monitor_ids):
-    frame = tk.Frame(window)
-    # sframe = tk.Frame(frame)
-    mframe = tk.Frame(frame)
-    # sframe.pack()
-    mframe.pack(fill="both", expand=True)
-
-    # t = tk.Label(sframe,text="Active", font=('Helvetica 12 bold'))
-    # t.grid(row=0, column=0, columnspan=3)
-    # monitor_active_buttons.append(tk.Checkbutton(sframe))
-    # monitor_active_buttons[-1].grid(row=0, column=4)
-
-    canvases.append(tk.Canvas(mframe))
-    canvases[i].pack(fill="both", expand=True)
-    
-    
+    frame = tk.Frame(monitorframe)
+    canvases.append(tk.Canvas(frame))
+    canvases[i].pack(expand=True, fill=tk.BOTH)
     grids.append(CanvasGrid(canvases[i], mbps[i]))
 
-    r, c = orchestrator.get_monitor_grid_position_by_id(monitor_id)
-    frame.grid(row=r, column=c)
-    
+    c, r = orchestrator.get_monitor_grid_position_by_id(monitor_id)
+    frame.grid(row=r, column=c, sticky=tk.NSEW)
+    monitorframe.grid_columnconfigure(c, weight=1)
+    monitorframe.grid_rowconfigure(r, weight=1)
 
+monitorframe.pack(expand=True, fill=tk.BOTH)
 # load the save file and set default values
 
 
