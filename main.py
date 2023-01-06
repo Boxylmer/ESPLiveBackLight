@@ -49,8 +49,12 @@ class MonitorOrchestrator:
         self.monitor_id_to_grid_position = self._find_monitor_grid_positions()
         self.grid_position_to_monitor_id = {value: key for key, value in self.monitor_id_to_grid_position.items()} # this only works for dicts with guaranteed unique values
 
-        self.border_monitor_path, self.border_edge_path = self._generate_monitor_side_path(self.first_monitor_id, first_edge='d')
-        print(self.border_monitor_path, self.border_edge_path)
+        self.border_monitor_path, \
+            self.border_edge_path, \
+            self.id_and_side_to_order_dict, \
+            self.order_to_id_and_side_dict = \
+            self._generate_monitor_side_path(self.first_monitor_id, first_edge='d')
+        print(self.border_monitor_path, self.border_edge_path, self.id_and_side_to_order_dict, self.order_to_id_and_side_dict)
 
     def _top_left_corner(self, border):
         return top_left_corner(border.monitor_id)
@@ -194,7 +198,19 @@ class MonitorOrchestrator:
             else:
                 monitor_id_path.append(next_monitor_path)
                 edge_path.append(next_edge_path)
-        return monitor_id_path, edge_path
+
+        id_and_side_to_order_dict = {}
+        order_to_id_and_side_dict = {}
+        assert len(monitor_id_path) ==  len(edge_path)
+        for idx, _ in enumerate(monitor_id_path):
+            id_and_side = (monitor_id_path[idx], edge_path[idx])
+            id_and_side_to_order_dict[id_and_side] = idx
+            order_to_id_and_side_dict[idx] = id_and_side
+        return monitor_id_path, edge_path, id_and_side_to_order_dict, order_to_id_and_side_dict
+
+    # @classmethod
+    # def _generate_grid_position_and_direction_to_order_dict():
+    #     pass
 
 
     #getters
@@ -202,6 +218,17 @@ class MonitorOrchestrator:
     def get_monitor_grid_position_by_id(self, id):
         return self.monitor_id_to_grid_position[id]
 
+    def get_order_of_edge(self, monitor_id, side):
+        key = (monitor_id, side)
+        if key in self.id_and_side_to_order_dict:
+            return self.id_and_side_to_order_dict[key]
+        else:
+            return None
+
+    def get_id_and_edge_from_order(self, order):
+        return self.order_to_id_and_side_dict[order]
+
+    def get_num_edges(self): return len(self.order_to_id_and_side_dict)
 
 class MonitorBorderPixels:
     def __init__(self, pixel_height, pixel_width, monitor_id):
@@ -276,10 +303,11 @@ class MonitorBorderPixels:
 
 #### define drawing things
 class CanvasGrid:
-    def __init__(self, canvas, mbpv):
+    def __init__(self, canvas, mbpv, orchestrator):
         self.DEFAULT_COLOR = "#%02x%02x%02x" % (50, 50, 50)
         self.canvas = canvas
         self.mbpv = mbpv
+        self.orchestrator = orchestrator
         self.initialize_objects()
 
     def initialize_objects(self):
@@ -290,6 +318,11 @@ class CanvasGrid:
         self.right_pixel_ids = [self.canvas.create_rectangle(1, 1, 1, 1, fill=self.DEFAULT_COLOR) for _ in range(self.mbpv.pixel_height)]
 
         self.monitor_text = self.canvas.create_text(1, 1, text="Monitor " + str(self.mbpv.monitor_id), fill="black", font=('Helvetica 15 bold'), anchor="center")
+
+        self.top_text = self.canvas.create_text(1, 1, text="top", fill="black", font=('Helvetica 15 bold'), anchor=tk.N)
+        self.bottom_text = self.canvas.create_text(1, 1, text="bot", fill="black", font=('Helvetica 15 bold'), anchor=tk.S)
+        self.left_text = self.canvas.create_text(1, 1, text=" 123456789abc↑defg", fill="black", font=('Helvetica 15 bold'), anchor=tk.W)
+        self.right_text = self.canvas.create_text(1, 1, text="123456789abcdefg↑ ", fill="black", font=('Helvetica 15 bold'), anchor=tk.E)
        
     def _pixel_coords(self, n, location):
         n_y = self.mbpv.pixel_height + 2
@@ -305,6 +338,18 @@ class CanvasGrid:
             return (0, (n+1)/n_y * h, 1/n_x * w, (n+2)/n_y * h)
         elif location == "RIGHT":
             return ((n_x-1)/n_x * w, (n+1)/n_y * h, w, (n+2)/n_y * h)
+
+    def _get_side_text(self, side):
+        result = self.orchestrator.get_order_of_edge(self.mbpv.monitor_id, side)
+        if result == None: result = "-"
+        elif result == 0: result = "start here!"
+        else: result = str(result)
+        
+        if side == 'l': result = ' ' + result
+        elif side == 'r': result = result + ' '
+        
+        return result 
+
 
     def update(self):
         for i, pid in enumerate(self.top_pixel_ids):
@@ -325,7 +370,17 @@ class CanvasGrid:
 
         self.canvas.coords(self.monitor_text, self.canvas.winfo_width()/2, self.canvas.winfo_height()/2)
 
+        self.canvas.coords(self.top_text, self.canvas.winfo_width()/2, self._pixel_coords(0, "LEFT")[1])
+        self.canvas.coords(self.bottom_text, self.canvas.winfo_width()/2, self._pixel_coords(0, "BOTTOM")[1])
+        self.canvas.coords(self.left_text, self._pixel_coords(0, "TOP")[3], self.canvas.winfo_height()/2)
+        self.canvas.coords(self.right_text, self._pixel_coords(0, "RIGHT")[0], self.canvas.winfo_height()/2)
 
+        
+        self.canvas.itemconfigure(self.top_text, text=self._get_side_text('u'))
+        self.canvas.itemconfigure(self.bottom_text, text=self._get_side_text('d'))
+        self.canvas.itemconfigure(self.left_text, text=self._get_side_text('l'))
+        self.canvas.itemconfigure(self.right_text, text=self._get_side_text('r'))
+            
 mbps = []
 monitor_ids = find_monitor_ids()
 for i, monitor_id in enumerate(monitor_ids):
@@ -370,7 +425,7 @@ for i, monitor_id in enumerate(monitor_ids):
     frame = tk.Frame(monitorframe)
     canvases.append(tk.Canvas(frame))
     canvases[i].pack(expand=True, fill=tk.BOTH)
-    grids.append(CanvasGrid(canvases[i], mbps[i]))
+    grids.append(CanvasGrid(canvases[i], mbps[i], orchestrator))
 
     c, r = orchestrator.get_monitor_grid_position_by_id(monitor_id)
     frame.grid(row=r, column=c, sticky=tk.NSEW)
