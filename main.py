@@ -22,8 +22,8 @@ sct = mss.mss()
 
 
 WINDOW_BORDER_FRACTION = 0.05
-REFRESH_TIME_MS = 100
-GUI_POLLING_TIME_MS = 10
+REFRESH_TIME_MS = 300
+GUI_POLLING_TIME_MS = 50
 
 def find_monitor_ids():
     return [*range(1, len(sct.monitors))]
@@ -92,27 +92,27 @@ class MonitorOrchestrator:
         print("all positions:")
         for pid in self.monitor_ids:
             print("   ", pid, ": ", top_left_corner(pid))
-        while len(remaining_position_ids) > 0: 
+        while len(remaining_position_ids) > 0:
             found_one_during_loop = False  # sets to true if a monitor was in a non-grid position
             for pid in remaining_position_ids:
-                print("Looking for location of monitor: ", pid)
+                # print("Looking for location of monitor: ", pid)
                 if found_one_during_loop: break
                 for d in dirs:
-                    print("-Looking in direction: ", d)
+                    # print("-Looking in direction: ", d)
                     if found_one_during_loop: break
                     original_position = top_left_corner(pid)
                     possible_known_position = original_position[0] - d[0] * sct.monitors[pid]["width"], original_position[1] - d[1] * sct.monitors[pid]["height"]
 
                     for pid_known in naive_ids_to_position.copy().keys():
-                        print("--currently known positions: ", naive_ids_to_position)
-                        print("--possibly known position: ", possible_known_position)
+                        # print("--currently known positions: ", naive_ids_to_position)
+                        # print("--possibly known position: ", possible_known_position)
                         if found_one_during_loop: break
                         known_position = top_left_corner(pid_known)
-                        print("--comparing to known position: ", known_position)
+                        # print("--comparing to known position: ", known_position)
                         if self._dist(possible_known_position, known_position) < MonitorOrchestrator.PX_TOLERANCE:
                             location = naive_ids_to_position[pid_known][0] + d[0], naive_ids_to_position[pid_known][1] + d[1]
                             naive_ids_to_position[pid] = location
-                            print("---FOUND POSITION: monitor ", pid, " at location ", location)
+                            # print("---FOUND POSITION: monitor ", pid, " at location ", location)
                             remaining_position_ids.remove(pid)
                             found_one_during_loop = True
                             # raise(Exception("---"))
@@ -120,12 +120,31 @@ class MonitorOrchestrator:
                 raise(Exception("One of the montiors was out of tolerance to be fit into a cardinal grid system!"))
 
 
-        print(naive_ids_to_position)
+        print("naive: ", naive_ids_to_position)
+        # find lowest values and normalize
+        lowestx=0
+        lowesty=0
+        for coordinate in naive_ids_to_position.values():
+            if coordinate[0] < lowestx: lowestx = coordinate[0]
+            if coordinate[1] < lowesty: lowesty = coordinate[1]
 
-            
+        ids_to_position = {}
+        for pid in naive_ids_to_position.keys():
+            # mms: right&down is the positive direction, but in our grid, right&up is positive
+            ids_to_position[pid] = (naive_ids_to_position[pid][1] - lowesty) , naive_ids_to_position[pid][0] - lowestx
+        print(ids_to_position)
+        # raise(Exception("---"))
+        return ids_to_position
 
     def _generate_monitor_side_path(self):
         pass
+
+
+
+    #getters
+
+    def get_monitor_grid_position_by_id(self, id):
+        return self.grid_positions[id]
 
 
 class MonitorBorderPixels:
@@ -258,107 +277,108 @@ for i, monitor_id in enumerate(monitor_ids):
 orchestrator = MonitorOrchestrator(mbps)
 
 
-# #### make tkinter gui
-# window = tk.Tk()
-# window.title("Boxman Fiddlejig")
-# # ipframe = tk.Frame(window)
-# # ipentry = tk.Entry(ipframe)
-# # ipentry.grid(row=0, column=1)
-# # urllabel = tk.Label(ipframe, text="Device URL:")
-# # urllabel.grid(row=0, column=0)
-# # ipframe.pack()
-# canvases = []  # we might not need to save these just yet
+#### make tkinter gui
+window = tk.Tk()
+window.title("Boxman Fiddlejig")
+# ipframe = tk.Frame(window)
+# ipentry = tk.Entry(ipframe)
+# ipentry.grid(row=0, column=1)
+# urllabel = tk.Label(ipframe, text="Device URL:")
+# urllabel.grid(row=0, column=0)
+# ipframe.pack()
+canvases = []  # we might not need to save these just yet
 
-# grids = []
-# monitor_active_buttons = []
-# widths_input_fields = []
-# heights_input_fields = []
+grids = []
+monitor_active_buttons = []
+widths_input_fields = []
+heights_input_fields = []
 
-# for i, monitor_id in enumerate(monitor_ids):
-#     frame = tk.Frame(window)
-#     # sframe = tk.Frame(frame)
-#     mframe = tk.Frame(frame)
-#     # sframe.pack()
-#     mframe.pack(fill="both", expand=True)
+for i, monitor_id in enumerate(monitor_ids):
+    frame = tk.Frame(window)
+    # sframe = tk.Frame(frame)
+    mframe = tk.Frame(frame)
+    # sframe.pack()
+    mframe.pack(fill="both", expand=True)
 
-#     # t = tk.Label(sframe,text="Active", font=('Helvetica 12 bold'))
-#     # t.grid(row=0, column=0, columnspan=3)
-#     # monitor_active_buttons.append(tk.Checkbutton(sframe))
-#     # monitor_active_buttons[-1].grid(row=0, column=4)
+    # t = tk.Label(sframe,text="Active", font=('Helvetica 12 bold'))
+    # t.grid(row=0, column=0, columnspan=3)
+    # monitor_active_buttons.append(tk.Checkbutton(sframe))
+    # monitor_active_buttons[-1].grid(row=0, column=4)
 
-#     canvases.append(tk.Canvas(mframe))
-#     canvases[i].pack(fill="both", expand=True)
+    canvases.append(tk.Canvas(mframe))
+    canvases[i].pack(fill="both", expand=True)
     
     
-#     grids.append(CanvasGrid(canvases[i], mbps[i]))
+    grids.append(CanvasGrid(canvases[i], mbps[i]))
 
-#     frame.pack(fill="both", expand=True, anchor=tk.S)
+    r, c = orchestrator.get_monitor_grid_position_by_id(monitor_id)
+    frame.grid(row=r, column=c)
     
 
-# # load the save file and set default values
+# load the save file and set default values
 
 
-# # Set the size of the window
-# window.geometry("700x350")
+# Set the size of the window
+window.geometry("700x350")
 
 
-# # Define a function for quit the window
-# def quit_window(icon, item):
-#     global SOFTKILL_MODEL
-#     SOFTKILL_MODEL = True
-#     icon.stop()
-#     window.destroy()
+# Define a function for quit the window
+def quit_window(icon, item):
+    global SOFTKILL_MODEL
+    SOFTKILL_MODEL = True
+    icon.stop()
+    window.destroy()
 
-# # Define a function to show the window again
-# def show_window(icon, item):
-#    icon.stop()
-#    window.after(0,window.deiconify())
+# Define a function to show the window again
+def show_window(icon, item):
+   icon.stop()
+   window.after(0,window.deiconify())
 
-# # Hide the window and show on the system taskbar
-# def hide_window():
-#    window.withdraw()
-#    image=Image.open("think.ico")
-#    menu=(
-#     item('Quit', quit_window), 
-#     item('Show', show_window, default=True),)
-#    icon=pystray.Icon("name", image, "My System Tray Icon", menu)
-#    icon.run()
+# Hide the window and show on the system taskbar
+def hide_window():
+   window.withdraw()
+   image=Image.open("think.ico")
+   menu=(
+    item('Quit', quit_window), 
+    item('Show', show_window, default=True),)
+   icon=pystray.Icon("name", image, "My System Tray Icon", menu)
+   icon.run()
 
-# window.protocol('WM_DELETE_WINDOW', hide_window)   # uncomment to reactivate tray behavior
+window.protocol('WM_DELETE_WINDOW', hide_window)   # uncomment to reactivate tray behavior
 
-# SOFTKILL_MODEL = False
-# def ping_model():
-#     global SOFTKILL_MODEL
-#     last_refresh_time = time.time()
-#     while True:
-#         if SOFTKILL_MODEL:
-#             SOFTKILL_MODEL = False
-#             return
-#         if (time.time() - last_refresh_time) * 1000 > REFRESH_TIME_MS:
-#             last_refresh_time = time.time()
-#             for mbpv in mbps:
-#                 try:
-#                     mbpv.update()
-#                 except:
-#                     print("WARNING: Model loop failed to ping.")
+SOFTKILL_MODEL = False
+def ping_model():
+    global SOFTKILL_MODEL
+    last_refresh_time = time.time()
+    while True:
+        if SOFTKILL_MODEL:
+            SOFTKILL_MODEL = False
+            return
+        if (time.time() - last_refresh_time) * 1000 > REFRESH_TIME_MS:
+            last_refresh_time = time.time()
+            for mbpv in mbps:
+                try:
+                    mbpv.update()
+                except:
+                    print("WARNING: Model loop failed to ping.")
         
-#         remaining_time = max(0, REFRESH_TIME_MS/1000 - (time.time() - last_refresh_time))
-#         print(remaining_time)
-#         time.sleep(remaining_time)
+        remaining_time = max(0, REFRESH_TIME_MS/1000 - (time.time() - last_refresh_time))
+        # print(remaining_time)
+        time.sleep(remaining_time)
 
-# threading.Thread(target=ping_model).start()
+threading.Thread(target=ping_model).start()
 
-# last_refresh_time = time.time()
-# while True:
-#     if (time.time() - last_refresh_time) * 1000 > GUI_POLLING_TIME_MS:
-#         last_refresh_time = time.time()
-#         for grid in grids:
-#             grid.update()
+last_refresh_time = time.time()
+while True:
+    if (time.time() - last_refresh_time) * 1000 > GUI_POLLING_TIME_MS:
+        last_refresh_time = time.time()
+        for grid in grids:
+            grid.update()
 
-#     window.update_idletasks()
-#     window.update()
-#     remaining_time = max(0, GUI_POLLING_TIME_MS/1000 - (time.time() - last_refresh_time))
-#     # print(GUI_POLLING_TIME_MS/1000 - (time.time() - last_refresh_time))
+    window.update_idletasks()
+    window.update()
+    remaining_time = max(0, GUI_POLLING_TIME_MS/1000 - (time.time() - last_refresh_time))
+    # print(GUI_POLLING_TIME_MS/1000 - (time.time() - last_refresh_time))
 
-#     time.sleep(remaining_time)
+    time.sleep(remaining_time)
 
