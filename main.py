@@ -130,7 +130,7 @@ class MonitorOrchestrator:
 
         ids_to_position = {}
         for pid in naive_ids_to_position.keys():
-            # mms: right&down is the positive direction, but in our grid, right&up is positive
+            # shift everything up and flip x and y
             ids_to_position[pid] = (naive_ids_to_position[pid][1] - lowesty) , naive_ids_to_position[pid][0] - lowestx
         print(ids_to_position)
         # raise(Exception("---"))
