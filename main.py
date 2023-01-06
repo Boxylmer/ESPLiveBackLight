@@ -13,18 +13,19 @@ import mss
 import mss.tools
 sct = mss.mss()
 
-monitor = sct.monitors[1]
-TOP = (monitor["left"], monitor["top"], 0,monitor["height"])
-scr_top = sct.grab(TOP)
-img = Image.frombytes("RGB", scr_top.size, scr_top.bgra, "raw", "BGRX")
-img.show()
+# monitor = sct.monitors[2]
+
+# TOP = (monitor["left"], monitor["top"], 0,monitor["height"])
+# scr_top = sct.grab(TOP)
+# img = Image.frombytes("RGB", scr_top.size, scr_top.bgra, "raw", "BGRX")
+# img.show()
 
     
 
 
 WINDOW_BORDER_FRACTION = 0.05
-REFRESH_TIME_MS = 200
-GUI_POLLING_TIME_MS = 20
+REFRESH_TIME_MS = 100
+GUI_POLLING_TIME_MS = 10
 
 def find_monitor_ids():
     return [*range(1, len(sct.monitors))]
@@ -43,10 +44,30 @@ class MonitorBorderPixValues:
         w_margin = round(WINDOW_BORDER_FRACTION * self.monitor["width"])
         h_margin = round(WINDOW_BORDER_FRACTION * self.monitor["height"])
 
-        self.TOP = (self.monitor["left"], self.monitor["top"], self.monitor["width"], self.monitor["top"] + h_margin)
-        self.BOTTOM = (self.monitor["left"], self.monitor["height"]-h_margin, self.monitor["width"], self.monitor["height"])
-        self.LEFT = (self.monitor["left"], self.monitor["top"], self.monitor["left"]+w_margin, self.monitor["height"])
-        self.RIGHT = (self.monitor["width"]-w_margin, self.monitor["top"], self.monitor["width"], self.monitor["height"])
+        self.TOP = (
+            self.monitor["left"], 
+            self.monitor["top"], 
+            self.monitor["left"] + self.monitor["width"], 
+            self.monitor["top"] + h_margin
+        )
+        self.BOTTOM = (
+            self.monitor["left"], 
+            self.monitor["top"] + self.monitor["height"] - h_margin, 
+            self.monitor["left"] + self.monitor["width"], 
+            self.monitor["top"] + self.monitor["height"]
+        )
+        self.LEFT = (
+            self.monitor["left"], 
+            self.monitor["top"], 
+            self.monitor["left"] + w_margin, 
+            self.monitor["top"] + self.monitor["height"]
+        )
+        self.RIGHT = (
+            self.monitor["left"] + self.monitor["width"] - w_margin, 
+            self.monitor["top"], 
+            self.monitor["left"] + self.monitor["width"], 
+            self.monitor["top"] + self.monitor["height"]
+        )
 
 
     def update_border_size(self, pixel_height, pixel_width):
