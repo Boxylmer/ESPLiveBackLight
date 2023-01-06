@@ -1,6 +1,6 @@
 
 import serial
-from serial.tools import list_ports
+
 
 
 import serial.tools.list_ports

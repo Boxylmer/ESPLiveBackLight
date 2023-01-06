@@ -31,7 +31,63 @@ def find_monitor_ids():
     return [*range(1, len(sct.monitors))]
     # return [0]
 
-class MonitorBorderPixValues:
+def top_left_corner(id):
+    return sct.monitors[id]["left"], sct.monitors[id]["top"]
+def bottom_left_corner(id):
+    return sct.monitors[id]["left"], sct.monitors[id]["top"] + sct.monitors[id]["height"]
+def top_right_corner(id):
+    return sct.monitors[id]["left"] + sct.monitors[id]["width"], sct.monitors[id]["top"]
+def bottom_right_corner(id):
+    return sct.monitors[id]["left"] + sct.monitors[id]["width"], sct.monitors[id]["top"] + sct.monitors[id]["height"]
+
+class MonitorOrchestrator:
+    PX_TOLERANCE = 100 # n-pixels for monitor borders to be considered touching
+    
+    def __init__(self, monitor_borders):
+        self.monitor_borders = monitor_borders
+    
+    # def _get_monitor_xy_from_id(self, id):
+    #     return sct.monitors[id]["left"], sct.monitors[id]["top"]
+
+
+
+    def _top_left_corner(self, border):
+        return top_left_corner(border.monitor_id)
+
+    def _bottom_left_corner(self, border):
+        return bottom_left_corner(border.monitor_id)
+
+    def _top_right_corner(self, border):
+        return top_right_corner(border.monitor_id)
+
+    def _bottom_right_corner(self, border):
+        return bottom_right_corner(border.monitor_id)
+
+    def _dist(self, pt1, pt2):
+        return ((pt1[0] - pt2[0])**2 + (pt1[1] - pt2[1])**2)**0.5
+
+    def _first_monitor_idx(self):
+        target = bottom_left_corner(0)  # farthest bottom left of the virtual monitor
+        best_distance = self._dist(target, top_right_corner(0))  # naieve initial target that, by definition, must be higher than any corner
+        print(best_distance)
+        best_candidate_idx = 0
+        for idx, monitor_border in enumerate(self.monitor_borders):
+            candidate_distance = self._dist(target, self._bottom_left_corner(monitor_border))
+            print(candidate_distance)
+            if candidate_distance < best_distance:
+                best_candidate_idx = idx
+                best_distance = candidate_distance
+        return best_candidate_idx
+
+        
+    def _find_monitor_positions(self):
+        pass
+
+    def _generate_monitor_side_path(self):
+        pass
+
+
+class MonitorBorderPixels:
     def __init__(self, pixel_height, pixel_width, monitor_id):
         self.monitor_id = monitor_id
         self.monitor = sct.monitors[monitor_id]
@@ -157,14 +213,14 @@ class CanvasGrid:
 #### make tkinter gui
 window = tk.Tk()
 window.title("Boxman Fiddlejig")
-ipframe = tk.Frame(window)
-ipentry = tk.Entry(ipframe)
-ipentry.grid(row=0, column=1)
-urllabel = tk.Label(ipframe, text="Device URL:")
-urllabel.grid(row=0, column=0)
-ipframe.pack()
+# ipframe = tk.Frame(window)
+# ipentry = tk.Entry(ipframe)
+# ipentry.grid(row=0, column=1)
+# urllabel = tk.Label(ipframe, text="Device URL:")
+# urllabel.grid(row=0, column=0)
+# ipframe.pack()
 canvases = []  # we might not need to save these just yet
-mbpvs = []
+mbps = []
 grids = []
 monitor_active_buttons = []
 widths_input_fields = []
@@ -172,21 +228,21 @@ heights_input_fields = []
 
 for monitor_id in find_monitor_ids():
     frame = tk.Frame(window)
-    sframe = tk.Frame(frame)
+    # sframe = tk.Frame(frame)
     mframe = tk.Frame(frame)
-    sframe.pack()
+    # sframe.pack()
     mframe.pack(fill="both", expand=True)
 
-    t = tk.Label(sframe,text="Active", font=('Helvetica 12 bold'))
-    t.grid(row=0, column=0, columnspan=3)
-    monitor_active_buttons.append(tk.Checkbutton(sframe))
-    monitor_active_buttons[-1].grid(row=0, column=4)
+    # t = tk.Label(sframe,text="Active", font=('Helvetica 12 bold'))
+    # t.grid(row=0, column=0, columnspan=3)
+    # monitor_active_buttons.append(tk.Checkbutton(sframe))
+    # monitor_active_buttons[-1].grid(row=0, column=4)
 
     canvases.append(tk.Canvas(mframe))
     canvases[-1].pack(fill="both", expand=True)
-    mbpvs.append(MonitorBorderPixValues(20, 40, monitor_id))
+    mbps.append(MonitorBorderPixels(20, 40, monitor_id))
     
-    grids.append(CanvasGrid(canvases[-1], mbpvs[-1]))
+    grids.append(CanvasGrid(canvases[-1], mbps[-1]))
 
     frame.pack(fill="both", expand=True, anchor=tk.S)
     
@@ -232,7 +288,7 @@ def ping_model():
             return
         if (time.time() - last_refresh_time) * 1000 > REFRESH_TIME_MS:
             last_refresh_time = time.time()
-            for mbpv in mbpvs:
+            for mbpv in mbps:
                 try:
                     mbpv.update()
                 except:
