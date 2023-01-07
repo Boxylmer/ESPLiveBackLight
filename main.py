@@ -9,6 +9,9 @@ from pystray import MenuItem as item
 import tkinter as tk
 import time
 
+from serial import Serial
+import serial.tools.list_ports
+
 import mss
 import mss.tools
 sct = mss.mss()
@@ -18,10 +21,9 @@ sct = mss.mss()
 # img = Image.frombytes("RGB", scr_top.size, scr_top.bgra, "raw", "BGRX")
 # img.show()
 
-
-WINDOW_BORDER_FRACTION = 0.01
-REFRESH_TIME_MS = 200
-GUI_POLLING_TIME_MS = 50
+WINDOW_BORDER_FRACTION = 0.08
+REFRESH_TIME_MS = 100
+GUI_POLLING_TIME_MS = 20
 
 def find_monitor_ids():
     return [*range(1, len(sct.monitors))]
@@ -36,18 +38,23 @@ def top_right_corner(id):
 def bottom_right_corner(id):
     return sct.monitors[id]["left"] + sct.monitors[id]["width"], sct.monitors[id]["top"] + sct.monitors[id]["height"]
 
+# def shortest_path(positions, start_position_index):
+#     dirs = [(1,0), (0, 1), (-1, 0), (0, -1)]
+#     best_sequence = [start_position_index]
+#     remaining_positions = positions.copy()
+#     del remaining_positions[start_position_index]
 
 
-
+# print(shortest_path([(0, 0), (1, 0), (1, 1), (1, -1), (1, -2)], 0))
 
 class MonitorOrchestrator:
     PX_TOLERANCE = 100 # n-pixels for monitor borders to be considered touching
     MONITOR_LIMIT = 50
 
-
     def __init__(self, monitor_borders):
         self.monitor_borders = monitor_borders
         self.monitor_ids = [b.monitor_id for b in monitor_borders]
+        self.monitor_id_to_border_object = {b.monitor_id: b for b in monitor_borders}
 
         self.first_monitor_id = self.monitor_ids[self._first_monitor_idx()]
         self.monitor_id_to_grid_position = self._find_monitor_grid_positions()
@@ -57,11 +64,16 @@ class MonitorOrchestrator:
 
         # border info
         self.border_monitor_path, \
-            self.border_edge_path, \
-            self.id_and_side_to_border_order_dict, \
-            self.border_order_to_id_and_side_dict = \
-            self._generate_monitor_side_path(self.first_monitor_id, first_edge='d')
+        self.border_edge_path, \
+        self.id_and_side_to_border_order_dict, \
+        self.border_order_to_id_and_side_dict = \
+        self._generate_monitor_side_path(self.first_monitor_id, first_edge='d')
         print(self.border_monitor_path, self.border_edge_path, self.id_and_side_to_border_order_dict, self.border_order_to_id_and_side_dict)
+
+        self.complete_monitor_path, \
+        self.complete_edge_path, \
+        self.id_and_side_to_complete_order_dict, \
+        self.complete_order_to_id_and_side_dict = self._generate_monitor_total_path()
 
     def _top_left_corner(self, border):
         return top_left_corner(border.monitor_id)
@@ -215,9 +227,25 @@ class MonitorOrchestrator:
             order_to_id_and_side_dict[idx] = id_and_side
         return monitor_id_path, edge_path, id_and_side_to_order_dict, order_to_id_and_side_dict
 
-    # @classmethod
-    # def _generate_grid_position_and_direction_to_order_dict():
-    #     pass
+    def _generate_monitor_total_path(self):
+        complete_monitor_path = []
+        for id in monitor_ids:
+            complete_monitor_path.append(id)
+            complete_monitor_path.append(id)
+            complete_monitor_path.append(id)
+            complete_monitor_path.append(id)
+
+        complete_edge_path = ('d', 'l', 'u', 'r') * len(self.monitor_ids)
+        print
+        id_and_side_to_complete_order_dict = {}
+        complete_order_to_id_and_side_dict = {}
+        assert len(complete_monitor_path) ==  len(complete_edge_path)
+        for idx, _ in enumerate(complete_monitor_path):
+            id_and_side = (complete_monitor_path[idx], complete_edge_path[idx])
+            id_and_side_to_complete_order_dict[id_and_side] = idx
+            complete_order_to_id_and_side_dict[idx] = id_and_side
+
+        return complete_monitor_path, complete_edge_path, id_and_side_to_complete_order_dict, complete_order_to_id_and_side_dict
 
     #setters and commands
 
@@ -237,7 +265,11 @@ class MonitorOrchestrator:
             else:
                 return None
         elif self.path_mode == 'all':
-            pass
+            key = (monitor_id, side)
+            if key in self.id_and_side_to_complete_order_dict:
+                return self.id_and_side_to_complete_order_dict[key]
+            else:
+                return None
         else:
             raise Exception("Invalid mode")
 
@@ -245,7 +277,7 @@ class MonitorOrchestrator:
         if self.path_mode == 'border':
             return self.border_order_to_id_and_side_dict[order]
         elif self.path_mode == 'all':
-            pass
+            return self.complete_order_to_id_and_side_dict[order]
         else:
             raise Exception("Invalid mode")
 
@@ -254,6 +286,46 @@ class MonitorOrchestrator:
             return len(self.border_order_to_id_and_side_dict)
         elif self.path_mode == 'all':
             return len(self.monitor_ids) * 4
+
+    def get_pixel_row(self, id, edge):
+        if edge == 'u':
+            return self.monitor_id_to_border_object[id].get_top()
+        elif edge == 'd':
+            return self.monitor_id_to_border_object[id].get_bottom()
+        elif edge == 'l':
+            return self.monitor_id_to_border_object[id].get_left()
+        elif edge == 'r':
+            return self.monitor_id_to_border_object[id].get_right()
+
+    def get_pixel_stream(self):
+        data = bytearray([1])
+        
+        if self.path_mode == 'border':
+            id_and_side_lookup = self.border_order_to_id_and_side_dict
+        elif self.path_mode == 'all':
+            id_and_side_lookup = self.complete_order_to_id_and_side_dict
+        else: raise Exception("Path mode was not valid")
+        
+        for i in range(self.get_num_edges()):
+            pid, side = id_and_side_lookup[i]
+            row = self.get_pixel_row(pid, side)
+            if side == 'u':
+                rgbrow = row
+            elif side == 'd':
+                rgbrow = np.flip(row)
+            elif side == 'l':
+                rgbrow = np.flip(row)
+            elif side == 'r':
+                rgbrow = row
+            
+            for colorval in rgbrow:
+                # print(colorval)
+                data.append(colorval[0])
+                data.append(colorval[1])
+                data.append(colorval[2])
+
+        print(data)
+        return data
 
 class MonitorBorderPixels:
     def __init__(self, pixel_height, pixel_width, monitor_id):
@@ -320,11 +392,15 @@ class MonitorBorderPixels:
         img_top = Image.frombytes("RGB", scr_top.size, scr_top.bgra, "raw", "BGRX")
         img_bottom = Image.frombytes("RGB", scr_bottom.size, scr_bottom.bgra, "raw", "BGRX")
 
-
         self.pix_left = np.array(img_left.resize((1, self.pixel_height))).squeeze()
         self.pix_right = np.array(img_right.resize((1, self.pixel_height))).squeeze()
         self.pix_top = np.array(img_top.resize((self.pixel_width, 1))).squeeze()
         self.pix_bottom = np.array(img_bottom.resize((self.pixel_width, 1))).squeeze()
+
+    def get_top(self): return self.pix_top
+    def get_bottom(self): return self.pix_bottom
+    def get_left(self): return self.pix_left
+    def get_right(self): return self.pix_right
 
 #### define drawing things
 class CanvasGrid:
@@ -409,7 +485,7 @@ class CanvasGrid:
 mbps = []
 monitor_ids = find_monitor_ids()
 for i, monitor_id in enumerate(monitor_ids):
-    mbps.append(MonitorBorderPixels(20, 40, monitor_id))
+    mbps.append(MonitorBorderPixels(5, 5, monitor_id))
 orchestrator = MonitorOrchestrator(mbps)
 
 #### make tkinter gui
@@ -490,7 +566,12 @@ def hide_window():
    icon=pystray.Icon("name", image, "My System Tray Icon", menu)
    icon.run()
 
-window.protocol('WM_DELETE_WINDOW', hide_window)   # uncomment to reactivate tray behavior
+window.protocol('WM_DELETE_WINDOW', hide_window)   
+
+
+plist = [x.device for x in list(serial.tools.list_ports.comports())]
+print(plist)
+ser = Serial(plist[0], 200000, timeout=0.0, parity=serial.PARITY_NONE)
 
 SOFTKILL_MODEL = False
 def ping_model():
@@ -504,10 +585,11 @@ def ping_model():
             last_refresh_time = time.time()
             for mbpv in mbps:
                 try:
-                    mbpv.update()
+                    mbpv.update() # todo this is where profiling might start
                 except:
                     print("WARNING: Model loop failed to ping.")
-        
+            stream = orchestrator.get_pixel_stream()
+            ser.write(stream)
         remaining_time = max(0, REFRESH_TIME_MS/1000 - (time.time() - last_refresh_time))
         # print(remaining_time)
         time.sleep(remaining_time)
