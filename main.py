@@ -21,7 +21,7 @@ sct = mss.mss()
 # img = Image.frombytes("RGB", scr_top.size, scr_top.bgra, "raw", "BGRX")
 # img.show()
 
-WINDOW_BORDER_FRACTION = 0.08
+WINDOW_BORDER_FRACTION = 0.01
 REFRESH_TIME_MS = 100
 GUI_POLLING_TIME_MS = 20
 
@@ -38,14 +38,6 @@ def top_right_corner(id):
 def bottom_right_corner(id):
     return sct.monitors[id]["left"] + sct.monitors[id]["width"], sct.monitors[id]["top"] + sct.monitors[id]["height"]
 
-# def shortest_path(positions, start_position_index):
-#     dirs = [(1,0), (0, 1), (-1, 0), (0, -1)]
-#     best_sequence = [start_position_index]
-#     remaining_positions = positions.copy()
-#     del remaining_positions[start_position_index]
-
-
-# print(shortest_path([(0, 0), (1, 0), (1, 1), (1, -1), (1, -2)], 0))
 
 class MonitorOrchestrator:
     PX_TOLERANCE = 100 # n-pixels for monitor borders to be considered touching
@@ -319,12 +311,11 @@ class MonitorOrchestrator:
                 rgbrow = row
             
             for colorval in rgbrow:
-                # print(colorval)
-                data.append(colorval[0])
-                data.append(colorval[1])
                 data.append(colorval[2])
+                data.append(colorval[1])
+                data.append(colorval[0])
 
-        print(data)
+        # print(data)
         return data
 
 class MonitorBorderPixels:
@@ -485,7 +476,7 @@ class CanvasGrid:
 mbps = []
 monitor_ids = find_monitor_ids()
 for i, monitor_id in enumerate(monitor_ids):
-    mbps.append(MonitorBorderPixels(5, 5, monitor_id))
+    mbps.append(MonitorBorderPixels(5, 14, monitor_id))
 orchestrator = MonitorOrchestrator(mbps)
 
 #### make tkinter gui
@@ -570,8 +561,8 @@ window.protocol('WM_DELETE_WINDOW', hide_window)
 
 
 plist = [x.device for x in list(serial.tools.list_ports.comports())]
-print(plist)
-ser = Serial(plist[0], 200000, timeout=0.0, parity=serial.PARITY_NONE)
+# print(plist)
+ser = Serial(plist[0], 115200, timeout=0.0, parity=serial.PARITY_NONE)
 
 SOFTKILL_MODEL = False
 def ping_model():
@@ -591,7 +582,7 @@ def ping_model():
             stream = orchestrator.get_pixel_stream()
             ser.write(stream)
         remaining_time = max(0, REFRESH_TIME_MS/1000 - (time.time() - last_refresh_time))
-        # print(remaining_time)
+        print(remaining_time)
         time.sleep(remaining_time)
 
 threading.Thread(target=ping_model).start()

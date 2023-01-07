@@ -9,25 +9,25 @@ import random
 plist = [x.device for x in list(serial.tools.list_ports.comports())]
 print(plist)
 
-ser = Serial(plist[0], 200000, timeout=0.0, parity=serial.PARITY_NONE)
+ser = Serial(plist[0], 115200, timeout=0.0, parity=serial.PARITY_NONE)
 # ser.write(b'1')
 
 
 val1 = 255
 val2 = 255
 val3 = 255
-for _ in range(1000):
+for _ in range(10):
     ba = bytearray([1])
     for _ in range(10):
         ba.append(val1); ba.append(val2); ba.append(val3)
     # ba.append(0)
-    ser.write(ba)
+    print(ser.write(ba))
     val1 = random.randint(0, 155)
     val2 = random.randint(0, 155)
     val3 = random.randint(0, 155)
-    print(val1, val2, val3)
-    print(ba)
-    time.sleep(0.1)
+    # print(val1, val2, val3)
+    # print(ba)
+    time.sleep(0.01)
 
 
 # ser.write(bytearray([1, 100, 0, 100, 100, 100, 100, 100, 0, 100, 100, 100, 100, 100, 0, 100, 100, 100, 100, 0]))
