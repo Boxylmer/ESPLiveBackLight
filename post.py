@@ -13,21 +13,28 @@ ser = Serial(plist[0], 115200, timeout=0.0, parity=serial.PARITY_NONE)
 # ser.write(b'1')
 
 
-val1 = 255
-val2 = 255
-val3 = 255
+val1 = 254
+val2 = 254
+val3 = 254
 for _ in range(10):
-    ba = bytearray([1])
-    for _ in range(10):
+    ba = bytearray([55])
+    for _ in range(3):
         ba.append(val1); ba.append(val2); ba.append(val3)
-    # ba.append(0)
+    ba.append(0)
+    # ba.append(13) # /r
+    ba.append(10) # /n
+    # print(ba)
+    for val in ba:
+        print(val, end =" ")
+    print()
     print(ser.write(ba))
     val1 = random.randint(0, 155)
     val2 = random.randint(0, 155)
     val3 = random.randint(0, 155)
+
     # print(val1, val2, val3)
     # print(ba)
-    time.sleep(0.01)
+    time.sleep(0.1)
 
 
 # ser.write(bytearray([1, 100, 0, 100, 100, 100, 100, 100, 0, 100, 100, 100, 100, 100, 0, 100, 100, 100, 100, 0]))

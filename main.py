@@ -22,8 +22,17 @@ sct = mss.mss()
 # img.show()
 
 WINDOW_BORDER_FRACTION = 0.01
-REFRESH_TIME_MS = 100
+REFRESH_TIME_MS = 200
 GUI_POLLING_TIME_MS = 20
+
+MICROCHIP_START_BYTE = 55 # U
+MICROCHIP_STOP_BYTE = 10  # /n
+def remove_info_tokens(arr):
+    """Remove all tokens from the bytearray that would otherwise have signal meaning, such as the sequence terminator token."""
+    for i in range(2, len(arr) - 1):
+        if arr[i] == MICROCHIP_STOP_BYTE:
+            arr[i] = MICROCHIP_STOP_BYTE - 1 # clip to 254 and 0
+        # we won't need to deal with the start byte as the server won't be watching for it during reading
 
 def find_monitor_ids():
     return [*range(1, len(sct.monitors))]
@@ -37,6 +46,7 @@ def top_right_corner(id):
     return sct.monitors[id]["left"] + sct.monitors[id]["width"], sct.monitors[id]["top"]
 def bottom_right_corner(id):
     return sct.monitors[id]["left"] + sct.monitors[id]["width"], sct.monitors[id]["top"] + sct.monitors[id]["height"]
+
 
 
 class MonitorOrchestrator:
@@ -290,7 +300,7 @@ class MonitorOrchestrator:
             return self.monitor_id_to_border_object[id].get_right()
 
     def get_pixel_stream(self):
-        data = bytearray([1])
+        data = bytearray([MICROCHIP_START_BYTE])
         
         if self.path_mode == 'border':
             id_and_side_lookup = self.border_order_to_id_and_side_dict
@@ -314,9 +324,19 @@ class MonitorOrchestrator:
                 data.append(colorval[2])
                 data.append(colorval[1])
                 data.append(colorval[0])
-
-        # print(data)
+        remove_info_tokens(data)
+        data.append(MICROCHIP_STOP_BYTE)
         return data
+
+class CustomThread(threading.Thread):
+    def __init__(self, location, createdtime):
+        threading.Thread.__init__(self)
+        self.createdtime = createdtime
+        self.location = location
+        self.value = None
+    def run(self):
+        self.value = sct.grab(self.location)
+        print("Finished at: ", time.time() - self.createdtime)
 
 class MonitorBorderPixels:
     def __init__(self, pixel_height, pixel_width, monitor_id):
@@ -372,22 +392,53 @@ class MonitorBorderPixels:
             c = self.pix_right[n]
         return "#%02x%02x%02x" % (c[0], c[1], c[2])
 
+
+
     def update(self):
-        scr_top = sct.grab(self.TOP)
-        scr_bottom = sct.grab(self.BOTTOM)
-        scr_left = sct.grab(self.LEFT)
-        scr_right = sct.grab(self.RIGHT)
+        start_time = time.time()
+
+        ### THIS IS WHAT IS SLOW
+        # scr_top = sct.grab(self.TOP)
+        # scr_bottom = sct.grab(self.BOTTOM)
+        # scr_left = sct.grab(self.LEFT)
+        # scr_right = sct.grab(self.RIGHT)
+        topthread = CustomThread(self.TOP, start_time)
+        bottomthread = CustomThread(self.BOTTOM, start_time)
+        leftthread = CustomThread(self.LEFT, start_time)
+        rightthread = CustomThread(self.RIGHT, start_time)
+        topthread.start()
+        bottomthread.start()
+        leftthread.start()
+        rightthread.start()
+        topthread.join()
+        bottomthread.join()
+        leftthread.join()
+        rightthread.join()
+        scr_top = topthread.value
+        scr_bottom = bottomthread.value
+        scr_left = leftthread.value
+        scr_right = rightthread.value
+
+        print("- - Monitor grab time: ", time.time() - start_time)
+        
+        temp_start_time = time.time()
 
         img_left = Image.frombytes("RGB", scr_left.size, scr_left.bgra, "raw", "BGRX")
         img_right = Image.frombytes("RGB", scr_right.size, scr_right.bgra, "raw", "BGRX")
         img_top = Image.frombytes("RGB", scr_top.size, scr_top.bgra, "raw", "BGRX")
         img_bottom = Image.frombytes("RGB", scr_bottom.size, scr_bottom.bgra, "raw", "BGRX")
 
+        print("- - Image byte conversion time: ", time.time() - temp_start_time)
+        temp_start_time = time.time()
+
         self.pix_left = np.array(img_left.resize((1, self.pixel_height))).squeeze()
         self.pix_right = np.array(img_right.resize((1, self.pixel_height))).squeeze()
         self.pix_top = np.array(img_top.resize((self.pixel_width, 1))).squeeze()
         self.pix_bottom = np.array(img_bottom.resize((self.pixel_width, 1))).squeeze()
+        print("- - np array conversion time: ", time.time() - temp_start_time)
 
+        print("- TOTAL Monitor border update time: ", time.time() - start_time)
+    
     def get_top(self): return self.pix_top
     def get_bottom(self): return self.pix_bottom
     def get_left(self): return self.pix_left
@@ -569,6 +620,7 @@ def ping_model():
     global SOFTKILL_MODEL
     last_refresh_time = time.time()
     while True:
+        start_time = time.time()
         if SOFTKILL_MODEL:
             SOFTKILL_MODEL = False
             return
@@ -580,10 +632,13 @@ def ping_model():
                 except:
                     print("WARNING: Model loop failed to ping.")
             stream = orchestrator.get_pixel_stream()
+            
             ser.write(stream)
         remaining_time = max(0, REFRESH_TIME_MS/1000 - (time.time() - last_refresh_time))
-        print(remaining_time)
+        # print(remaining_time)
         time.sleep(remaining_time)
+        end_time = time.time()
+        print("Total frame time: ", end_time - start_time)
 
 threading.Thread(target=ping_model).start()
 
