@@ -16,6 +16,8 @@ import mss
 import mss.tools
 sct = mss.mss()
 
+import d3dshot
+
 def get_master_screenshot():
     """Get a screenshot of the overall virtual screen."""
     complete_screengrab = sct.grab(sct.monitors[0])
