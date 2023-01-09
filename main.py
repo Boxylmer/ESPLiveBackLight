@@ -1,5 +1,10 @@
 # known working on python version 3.8.0
 
+# todo
+# pixel row / height input
+# com port search and dropdown
+# settings file
+# go back over the serial protocol on the microchip
 
 import threading
 from PIL import Image
@@ -104,7 +109,6 @@ class MonitorOrchestrator:
     def _dist(self, pt1, pt2):
         return ((pt1[0] - pt2[0])**2 + (pt1[1] - pt2[1])**2)**0.5
 
-    # todo this may be arbitrary
     def _first_monitor_idx(self):
         target = bottom_left_corner(0)  # farthest bottom left of the virtual monitor
         best_distance = self._dist(target, top_right_corner(0))  # naieve initial target that, by definition, must be higher than any corner
@@ -425,9 +429,7 @@ class MonitorBorderPixels:
             if (time.time() - last_refresh_time) * 1000 > REFRESH_TIME_MS:
                 last_refresh_time = time.time()
                 self.update_img()
-
-
-                print("Total frame time for monitor ", self.monitor_id, ": ", time.time() - last_refresh_time)
+                # print("Total frame time for monitor ", self.monitor_id, ": ", time.time() - last_refresh_time)
             else:
                 remaining_time = max(0, REFRESH_TIME_MS/1000 - (time.time() - last_refresh_time))
                 time.sleep(remaining_time)
@@ -647,7 +649,7 @@ def ping_model():
             last_refresh_time = time.time()
             try:
                 for mbpv in mbps:
-                    mbpv.update() # todo this is where profiling might start
+                    mbpv.update() 
             except:
                 print("WARNING: Model loop failed to ping.")
             stream = orchestrator.get_pixel_stream()
