@@ -33,7 +33,7 @@ SOFTKILL_MODEL = False
 # img.show()
 
 WINDOW_BORDER_FRACTION = 0.07
-REFRESH_TIME_MS = 100
+REFRESH_TIME_MS = 75
 GUI_POLLING_TIME_MS = 100
 
 MICROCHIP_START_BYTE = 55 # U
@@ -59,7 +59,6 @@ def top_right_corner(id):
     return sct.monitors[id]["left"] + sct.monitors[id]["width"], sct.monitors[id]["top"]
 def bottom_right_corner(id):
     return sct.monitors[id]["left"] + sct.monitors[id]["width"], sct.monitors[id]["top"] + sct.monitors[id]["height"]
-
 
 
 class MonitorOrchestrator:
@@ -658,7 +657,6 @@ def ping_model():
         # print(remaining_time)
         time.sleep(remaining_time)
         # print("Total frame time: ", time.time() - start_time)
-
 threading.Thread(target=ping_model).start()
 
 last_refresh_time = time.time()
@@ -674,4 +672,3 @@ while True:
     # print(GUI_POLLING_TIME_MS/1000 - (time.time() - last_refresh_time))
 
     time.sleep(remaining_time)
-
