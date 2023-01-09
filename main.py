@@ -366,6 +366,31 @@ class MonitorBorderPixels:
             self.monitor["top"] + self.monitor["height"]
         )
 
+        self.LOCAL_TOP = (
+            0, 
+            0, 
+            self.monitor["width"], 
+            h_margin
+        )
+        self.LOCAL_BOTTOM = (
+            0, 
+            self.monitor["height"] - h_margin, 
+            self.monitor["width"], 
+            self.monitor["height"]
+        )
+        self.LOCAL_LEFT = (
+            0, 
+            0, 
+            w_margin, 
+            self.monitor["height"]
+        )
+        self.LOCAL_RIGHT = (
+            self.monitor["width"] - w_margin, 
+            0, 
+            self.monitor["width"], 
+            self.monitor["height"]
+        )
+
 
     def update_border_size(self, pixel_height, pixel_width):
         self.pixel_height = pixel_height
@@ -385,29 +410,11 @@ class MonitorBorderPixels:
     def update(self):
         start_time = time.time()
 
-        ### THIS IS WHAT IS SLOW, original method
+        ## THIS IS WHAT IS SLOW, original method
         # scr_top = sct.grab(self.TOP)
         # scr_bottom = sct.grab(self.BOTTOM)
         # scr_left = sct.grab(self.LEFT)
         # scr_right = sct.grab(self.RIGHT)
-
-        # # threading method
-        # topthread = CustomThread(self.TOP, start_time)
-        # bottomthread = CustomThread(self.BOTTOM, start_time)
-        # leftthread = CustomThread(self.LEFT, start_time)
-        # rightthread = CustomThread(self.RIGHT, start_time)
-        # topthread.start()
-        # bottomthread.start()
-        # leftthread.start()
-        # rightthread.start()
-        # topthread.join()
-        # bottomthread.join()
-        # leftthread.join()
-        # rightthread.join()
-        # scr_top = topthread.value
-        # scr_bottom = bottomthread.value
-        # scr_left = leftthread.value
-        # scr_right = rightthread.value
 
         # new method, just get the entire screen and work with that
         scr = sct.grab((
@@ -417,10 +424,10 @@ class MonitorBorderPixels:
             self.monitor["top"] + self.monitor["height"]
         ))
         img = Image.frombytes("RGB", scr.size, scr.bgra, "raw", "BGRX")
-        self.pix_left = np.array(img.crop(self.LEFT).resize((1, self.pixel_height))).squeeze()
-        self.pix_right = np.array(img.crop(self.RIGHT).resize((1, self.pixel_height))).squeeze()
-        self.pix_top = np.array(img.crop(self.TOP).resize((self.pixel_width, 1))).squeeze()
-        self.pix_bottom = np.array(img.crop(self.BOTTOM).resize((self.pixel_width, 1))).squeeze()
+        self.pix_left = np.array(img.crop(self.LOCAL_LEFT).resize((1, self.pixel_height))).squeeze()
+        self.pix_right = np.array(img.crop(self.LOCAL_RIGHT).resize((1, self.pixel_height))).squeeze()
+        self.pix_top = np.array(img.crop(self.LOCAL_TOP).resize((self.pixel_width, 1))).squeeze()
+        self.pix_bottom = np.array(img.crop(self.LOCAL_BOTTOM).resize((self.pixel_width, 1))).squeeze()
 
         # print("- - Monitor grab time: ", time.time() - start_time)
         
@@ -632,6 +639,7 @@ def ping_model():
             last_refresh_time = time.time()
             for mbpv in mbps:
                 try:
+                    # complete_screenshot = sct.grab()
                     mbpv.update() # todo this is where profiling might start
                 except:
                     print("WARNING: Model loop failed to ping.")
@@ -639,10 +647,9 @@ def ping_model():
             
             # ser.write(stream)
         remaining_time = max(0, REFRESH_TIME_MS/1000 - (time.time() - last_refresh_time))
-        print(remaining_time)
+        # print(remaining_time)
         time.sleep(remaining_time)
-        end_time = time.time()
-        # print("Total frame time: ", end_time - start_time)
+        print("Total frame time: ", time.time() - start_time)
 
 threading.Thread(target=ping_model).start()
 
