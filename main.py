@@ -14,6 +14,8 @@ import serial.tools.list_ports
 
 import mss
 import mss.tools
+import mss.windows
+mss.windows.CAPTUREBLT = 0
 sct = mss.mss()
 
 def get_master_screenshot():
