@@ -17,12 +17,14 @@ import mss.tools
 import mss.windows
 mss.windows.CAPTUREBLT = 0
 sct = mss.mss()
+SOFTKILL_MODEL = False
 
-def get_master_screenshot():
-    """Get a screenshot of the overall virtual screen."""
-    complete_screengrab = sct.grab(sct.monitors[0])
-    complete_screenshot = Image.frombytes("RGB", complete_screengrab.size, complete_screengrab.bgra, "raw", "BGRX")
-    return complete_screenshot
+# def get_master_screenshot():
+#     """Get a screenshot of the overall virtual screen."""
+#     complete_screengrab = sct.grab(sct.monitors[0])
+#     complete_screenshot = Image.frombytes("RGB", complete_screengrab.size, complete_screengrab.bgra, "raw", "BGRX")
+#     return complete_screenshot
+# get_master_screenshot()
 # get_master_screenshot().show()
 
 # monitor = sct.monitors[1]
@@ -30,12 +32,14 @@ def get_master_screenshot():
 # img = Image.frombytes("RGB", scr_top.size, scr_top.bgra, "raw", "BGRX")
 # img.show()
 
-WINDOW_BORDER_FRACTION = 0.01
-REFRESH_TIME_MS = 50
-GUI_POLLING_TIME_MS = 20
+WINDOW_BORDER_FRACTION = 0.07
+REFRESH_TIME_MS = 100
+GUI_POLLING_TIME_MS = 100
 
 MICROCHIP_START_BYTE = 55 # U
 MICROCHIP_STOP_BYTE = 10  # /n
+
+
 def remove_info_tokens(arr):
     """Remove all tokens from the bytearray that would otherwise have signal meaning, such as the sequence terminator token."""
     for i in range(2, len(arr) - 1):
@@ -341,10 +345,20 @@ class MonitorBorderPixels:
     def __init__(self, pixel_height, pixel_width, monitor_id):
         self.monitor_id = monitor_id
         self.monitor = sct.monitors[monitor_id]
+        
+        self.monitor_bbox = (
+            self.monitor["left"], 
+            self.monitor["top"], 
+            self.monitor["left"] + self.monitor["width"], 
+            self.monitor["top"] + self.monitor["height"]
+        )
+
         self.refresh_screen_size()
         self.update_border_size(pixel_height, pixel_width)
-
-        self.update(get_master_screenshot())
+        self.update_img()
+        self.update()
+        self.kill_thread = False
+        self.subthread = threading.Thread(target=self.screencapture_subprocess).start()
 
     def refresh_screen_size(self):
 
@@ -401,6 +415,26 @@ class MonitorBorderPixels:
             self.monitor["height"]
         )
 
+    def update_img(self):
+        scr = sct.grab(self.monitor_bbox)
+        self.img = Image.frombytes("RGB", scr.size, scr.bgra, "raw", "BGRX")
+
+    def screencapture_subprocess(self):
+        last_refresh_time = time.time()
+        while True:
+            if self.kill_thread: return
+            if (time.time() - last_refresh_time) * 1000 > REFRESH_TIME_MS:
+                last_refresh_time = time.time()
+                self.update_img()
+
+
+                print("Total frame time for monitor ", self.monitor_id, ": ", time.time() - last_refresh_time)
+            else:
+                remaining_time = max(0, REFRESH_TIME_MS/1000 - (time.time() - last_refresh_time))
+                time.sleep(remaining_time)
+
+    def terminate_subprocess(self):
+        self.kill_thread = True
 
     def update_border_size(self, pixel_height, pixel_width):
         self.pixel_height = pixel_height
@@ -417,48 +451,12 @@ class MonitorBorderPixels:
             c = self.pix_right[n]
         return "#%02x%02x%02x" % (c[0], c[1], c[2])
 
-    def update(self, master_screenshot_img):
-        start_time = time.time()
+    def update(self):
+        self.pix_left = np.array(self.img.crop(self.LOCAL_LEFT).resize((1, self.pixel_height))).squeeze()
+        self.pix_right = np.array(self.img.crop(self.LOCAL_RIGHT).resize((1, self.pixel_height))).squeeze()
+        self.pix_top = np.array(self.img.crop(self.LOCAL_TOP).resize((self.pixel_width, 1))).squeeze()
+        self.pix_bottom = np.array(self.img.crop(self.LOCAL_BOTTOM).resize((self.pixel_width, 1))).squeeze()
 
-        ## THIS IS WHAT IS SLOW, original method
-        # scr_top = sct.grab(self.TOP)
-        # scr_bottom = sct.grab(self.BOTTOM)
-        # scr_left = sct.grab(self.LEFT)
-        # scr_right = sct.grab(self.RIGHT)
-
-        # new method, just get the entire screen and work with that
-        # scr = sct.grab((
-        #     self.monitor["left"], 
-        #     self.monitor["top"], 
-        #     self.monitor["left"] + self.monitor["width"], 
-        #     self.monitor["top"] + self.monitor["height"]
-        # ))
-        # img = Image.frombytes("RGB", scr.size, scr.bgra, "raw", "BGRX")
-        self.pix_left = np.array(master_screenshot_img.crop(self.LEFT).resize((1, self.pixel_height))).squeeze()
-        self.pix_right = np.array(master_screenshot_img.crop(self.RIGHT).resize((1, self.pixel_height))).squeeze()
-        self.pix_top = np.array(master_screenshot_img.crop(self.TOP).resize((self.pixel_width, 1))).squeeze()
-        self.pix_bottom = np.array(master_screenshot_img.crop(self.BOTTOM).resize((self.pixel_width, 1))).squeeze()
-
-        print("- - Monitor grab time: ", time.time() - start_time)
-        
-        # temp_start_time = time.time()
-
-        # # part of original methods
-        # img_left = Image.frombytes("RGB", scr_left.size, scr_left.bgra, "raw", "BGRX")
-        # img_right = Image.frombytes("RGB", scr_right.size, scr_right.bgra, "raw", "BGRX")
-        # img_top = Image.frombytes("RGB", scr_top.size, scr_top.bgra, "raw", "BGRX")
-        # img_bottom = Image.frombytes("RGB", scr_bottom.size, scr_bottom.bgra, "raw", "BGRX")
-
-        # print("- - Image byte conversion time: ", time.time() - temp_start_time)
-        # temp_start_time = time.time()
-
-        # self.pix_left = np.array(img_left.resize((1, self.pixel_height))).squeeze()
-        # self.pix_right = np.array(img_right.resize((1, self.pixel_height))).squeeze()
-        # self.pix_top = np.array(img_top.resize((self.pixel_width, 1))).squeeze()
-        # self.pix_bottom = np.array(img_bottom.resize((self.pixel_width, 1))).squeeze()
-        # print("- - np array conversion time: ", time.time() - temp_start_time)
-
-        # print("- TOTAL Monitor border update time: ", time.time() - start_time)
     
     def get_top(self): return self.pix_top
     def get_bottom(self): return self.pix_bottom
@@ -611,6 +609,7 @@ window.geometry("700x350")
 def quit_window(icon, item):
     global SOFTKILL_MODEL
     SOFTKILL_MODEL = True
+    for mbp in mbps: mbp.terminate_subprocess()
     icon.stop()
     window.destroy()
 
@@ -633,10 +632,10 @@ window.protocol('WM_DELETE_WINDOW', hide_window)
 
 
 plist = [x.device for x in list(serial.tools.list_ports.comports())]
-# print(plist)
-# ser = Serial(plist[0], 115200, timeout=0.0, parity=serial.PARITY_NONE)
+print(plist)
+ser = Serial(plist[0], 115200, timeout=0.0, parity=serial.PARITY_NONE)
 
-SOFTKILL_MODEL = False
+
 def ping_model():
     global SOFTKILL_MODEL
     last_refresh_time = time.time()
@@ -647,19 +646,18 @@ def ping_model():
             return
         if (time.time() - last_refresh_time) * 1000 > REFRESH_TIME_MS:
             last_refresh_time = time.time()
-            complete_screenshot = get_master_screenshot()
             try:
                 for mbpv in mbps:
-                        mbpv.update(complete_screenshot) # todo this is where profiling might start
+                    mbpv.update() # todo this is where profiling might start
             except:
                 print("WARNING: Model loop failed to ping.")
             stream = orchestrator.get_pixel_stream()
             
-            # ser.write(stream)
+            ser.write(stream)
         remaining_time = max(0, REFRESH_TIME_MS/1000 - (time.time() - last_refresh_time))
         # print(remaining_time)
         time.sleep(remaining_time)
-        print("Total frame time: ", time.time() - start_time)
+        # print("Total frame time: ", time.time() - start_time)
 
 threading.Thread(target=ping_model).start()
 
