@@ -22,7 +22,7 @@ sct = mss.mss()
 # img.show()
 
 WINDOW_BORDER_FRACTION = 0.01
-REFRESH_TIME_MS = 200
+REFRESH_TIME_MS = 50
 GUI_POLLING_TIME_MS = 20
 
 MICROCHIP_START_BYTE = 55 # U
@@ -328,16 +328,6 @@ class MonitorOrchestrator:
         data.append(MICROCHIP_STOP_BYTE)
         return data
 
-# class CustomThread(threading.Thread):
-#     def __init__(self, location, createdtime):
-#         threading.Thread.__init__(self)
-#         self.createdtime = createdtime
-#         self.location = location
-#         self.value = None
-#     def run(self):
-#         self.value = sct.grab(self.location)
-#         print("Finished at: ", time.time() - self.createdtime)
-
 class MonitorBorderPixels:
     def __init__(self, pixel_height, pixel_width, monitor_id):
         self.monitor_id = monitor_id
@@ -420,37 +410,38 @@ class MonitorBorderPixels:
         # scr_right = rightthread.value
 
         # new method, just get the entire screen and work with that
-        scr = sct.grab(        
+        scr = sct.grab((
             self.monitor["left"], 
             self.monitor["top"], 
             self.monitor["left"] + self.monitor["width"], 
             self.monitor["top"] + self.monitor["height"]
-        )
+        ))
         img = Image.frombytes("RGB", scr.size, scr.bgra, "raw", "BGRX")
-        self.pix_left = np.array(img.resize((1, self.pixel_height))).squeeze()
-        self.pix_right = np.array(img.resize((1, self.pixel_height))).squeeze()
-        self.pix_top = np.array(img.resize((self.pixel_width, 1))).squeeze()
-        self.pix_bottom = np.array(img.resize((self.pixel_width, 1))).squeeze()
+        self.pix_left = np.array(img.crop(self.LEFT).resize((1, self.pixel_height))).squeeze()
+        self.pix_right = np.array(img.crop(self.RIGHT).resize((1, self.pixel_height))).squeeze()
+        self.pix_top = np.array(img.crop(self.TOP).resize((self.pixel_width, 1))).squeeze()
+        self.pix_bottom = np.array(img.crop(self.BOTTOM).resize((self.pixel_width, 1))).squeeze()
 
-        print("- - Monitor grab time: ", time.time() - start_time)
+        # print("- - Monitor grab time: ", time.time() - start_time)
         
-        temp_start_time = time.time()
+        # temp_start_time = time.time()
 
-        img_left = Image.frombytes("RGB", scr_left.size, scr_left.bgra, "raw", "BGRX")
-        img_right = Image.frombytes("RGB", scr_right.size, scr_right.bgra, "raw", "BGRX")
-        img_top = Image.frombytes("RGB", scr_top.size, scr_top.bgra, "raw", "BGRX")
-        img_bottom = Image.frombytes("RGB", scr_bottom.size, scr_bottom.bgra, "raw", "BGRX")
+        # # part of original methods
+        # img_left = Image.frombytes("RGB", scr_left.size, scr_left.bgra, "raw", "BGRX")
+        # img_right = Image.frombytes("RGB", scr_right.size, scr_right.bgra, "raw", "BGRX")
+        # img_top = Image.frombytes("RGB", scr_top.size, scr_top.bgra, "raw", "BGRX")
+        # img_bottom = Image.frombytes("RGB", scr_bottom.size, scr_bottom.bgra, "raw", "BGRX")
 
-        print("- - Image byte conversion time: ", time.time() - temp_start_time)
-        temp_start_time = time.time()
+        # print("- - Image byte conversion time: ", time.time() - temp_start_time)
+        # temp_start_time = time.time()
 
-        self.pix_left = np.array(img_left.resize((1, self.pixel_height))).squeeze()
-        self.pix_right = np.array(img_right.resize((1, self.pixel_height))).squeeze()
-        self.pix_top = np.array(img_top.resize((self.pixel_width, 1))).squeeze()
-        self.pix_bottom = np.array(img_bottom.resize((self.pixel_width, 1))).squeeze()
-        print("- - np array conversion time: ", time.time() - temp_start_time)
+        # self.pix_left = np.array(img_left.resize((1, self.pixel_height))).squeeze()
+        # self.pix_right = np.array(img_right.resize((1, self.pixel_height))).squeeze()
+        # self.pix_top = np.array(img_top.resize((self.pixel_width, 1))).squeeze()
+        # self.pix_bottom = np.array(img_bottom.resize((self.pixel_width, 1))).squeeze()
+        # print("- - np array conversion time: ", time.time() - temp_start_time)
 
-        print("- TOTAL Monitor border update time: ", time.time() - start_time)
+        # print("- TOTAL Monitor border update time: ", time.time() - start_time)
     
     def get_top(self): return self.pix_top
     def get_bottom(self): return self.pix_bottom
@@ -626,7 +617,7 @@ window.protocol('WM_DELETE_WINDOW', hide_window)
 
 plist = [x.device for x in list(serial.tools.list_ports.comports())]
 # print(plist)
-ser = Serial(plist[0], 115200, timeout=0.0, parity=serial.PARITY_NONE)
+# ser = Serial(plist[0], 115200, timeout=0.0, parity=serial.PARITY_NONE)
 
 SOFTKILL_MODEL = False
 def ping_model():
@@ -646,12 +637,12 @@ def ping_model():
                     print("WARNING: Model loop failed to ping.")
             stream = orchestrator.get_pixel_stream()
             
-            ser.write(stream)
+            # ser.write(stream)
         remaining_time = max(0, REFRESH_TIME_MS/1000 - (time.time() - last_refresh_time))
-        # print(remaining_time)
+        print(remaining_time)
         time.sleep(remaining_time)
         end_time = time.time()
-        print("Total frame time: ", end_time - start_time)
+        # print("Total frame time: ", end_time - start_time)
 
 threading.Thread(target=ping_model).start()
 
