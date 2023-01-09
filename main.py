@@ -6,6 +6,10 @@
 # settings file
 # go back over the serial protocol on the microchip
 
+# disable certain monitors / make logic skip those monitors
+# specify refresh rate
+
+
 import threading
 from PIL import Image
 import numpy as np
@@ -338,14 +342,12 @@ class MonitorOrchestrator:
                 rgbrow = row
             
             for colorval in rgbrow:
-                data.append(colorval[2])
-                data.append(colorval[1])
-                data.append(colorval[0])
+                data.append(round(colorval[2]))
+                data.append(round(colorval[1]))
+                data.append(round(colorval[0]))
         remove_info_tokens(data)
         data.append(MICROCHIP_STOP_BYTE)
         return data
-
-
 
 class MonitorBorderPixels:
     def __init__(self, pixel_height, pixel_width, monitor_id):
@@ -578,9 +580,23 @@ def set_edgemode_checkbox(checked):
         return
     else: raise Exception("Invalid input!")
 
+# edge mode checkbutton
 edge_mode_check = tk.Checkbutton(optionsframe, variable=edge_mode_var, command=toggle_orchestrator_mode, text="Send only to edges", font=('Helvetica 12 bold'))
 edge_mode_check.pack(side=tk.LEFT)
 optionsframe.pack(expand=False)
+
+# pixel width entry form
+
+def enter_only_max_two_digits(entry, action_type) -> bool:
+    if action_type == '1' and not entry.isdigit():
+        return False
+    if action_type == '1' and float(entry) > 100:
+        return False
+
+    return True
+vcmd = (window.register(enter_only_max_two_digits), '%P', '%d')
+pixelwidthentry = tk.Entry(optionsframe, validate='key', validatecommand=vcmd)
+pixelwidthentry.pack(side=tk.LEFT)
 
 canvases = []  # we might not need to save these just yet
 
