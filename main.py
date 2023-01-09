@@ -16,6 +16,13 @@ import mss
 import mss.tools
 sct = mss.mss()
 
+def get_master_screenshot():
+    """Get a screenshot of the overall virtual screen."""
+    complete_screengrab = sct.grab(sct.monitors[0])
+    complete_screenshot = Image.frombytes("RGB", complete_screengrab.size, complete_screengrab.bgra, "raw", "BGRX")
+    return complete_screenshot
+# get_master_screenshot().show()
+
 # monitor = sct.monitors[1]
 # scr_top = sct.grab((monitor["left"], monitor["top"], monitor["left"] + monitor["width"], monitor["top"] + monitor["height"]))
 # img = Image.frombytes("RGB", scr_top.size, scr_top.bgra, "raw", "BGRX")
@@ -334,7 +341,8 @@ class MonitorBorderPixels:
         self.monitor = sct.monitors[monitor_id]
         self.refresh_screen_size()
         self.update_border_size(pixel_height, pixel_width)
-        self.update()
+
+        self.update(get_master_screenshot())
 
     def refresh_screen_size(self):
 
@@ -407,7 +415,7 @@ class MonitorBorderPixels:
             c = self.pix_right[n]
         return "#%02x%02x%02x" % (c[0], c[1], c[2])
 
-    def update(self):
+    def update(self, master_screenshot_img):
         start_time = time.time()
 
         ## THIS IS WHAT IS SLOW, original method
@@ -417,19 +425,19 @@ class MonitorBorderPixels:
         # scr_right = sct.grab(self.RIGHT)
 
         # new method, just get the entire screen and work with that
-        scr = sct.grab((
-            self.monitor["left"], 
-            self.monitor["top"], 
-            self.monitor["left"] + self.monitor["width"], 
-            self.monitor["top"] + self.monitor["height"]
-        ))
-        img = Image.frombytes("RGB", scr.size, scr.bgra, "raw", "BGRX")
-        self.pix_left = np.array(img.crop(self.LOCAL_LEFT).resize((1, self.pixel_height))).squeeze()
-        self.pix_right = np.array(img.crop(self.LOCAL_RIGHT).resize((1, self.pixel_height))).squeeze()
-        self.pix_top = np.array(img.crop(self.LOCAL_TOP).resize((self.pixel_width, 1))).squeeze()
-        self.pix_bottom = np.array(img.crop(self.LOCAL_BOTTOM).resize((self.pixel_width, 1))).squeeze()
+        # scr = sct.grab((
+        #     self.monitor["left"], 
+        #     self.monitor["top"], 
+        #     self.monitor["left"] + self.monitor["width"], 
+        #     self.monitor["top"] + self.monitor["height"]
+        # ))
+        # img = Image.frombytes("RGB", scr.size, scr.bgra, "raw", "BGRX")
+        self.pix_left = np.array(master_screenshot_img.crop(self.LEFT).resize((1, self.pixel_height))).squeeze()
+        self.pix_right = np.array(master_screenshot_img.crop(self.RIGHT).resize((1, self.pixel_height))).squeeze()
+        self.pix_top = np.array(master_screenshot_img.crop(self.TOP).resize((self.pixel_width, 1))).squeeze()
+        self.pix_bottom = np.array(master_screenshot_img.crop(self.BOTTOM).resize((self.pixel_width, 1))).squeeze()
 
-        # print("- - Monitor grab time: ", time.time() - start_time)
+        print("- - Monitor grab time: ", time.time() - start_time)
         
         # temp_start_time = time.time()
 
@@ -637,12 +645,12 @@ def ping_model():
             return
         if (time.time() - last_refresh_time) * 1000 > REFRESH_TIME_MS:
             last_refresh_time = time.time()
-            for mbpv in mbps:
-                try:
-                    # complete_screenshot = sct.grab()
-                    mbpv.update() # todo this is where profiling might start
-                except:
-                    print("WARNING: Model loop failed to ping.")
+            complete_screenshot = get_master_screenshot()
+            try:
+                for mbpv in mbps:
+                        mbpv.update(complete_screenshot) # todo this is where profiling might start
+            except:
+                print("WARNING: Model loop failed to ping.")
             stream = orchestrator.get_pixel_stream()
             
             # ser.write(stream)
