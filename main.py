@@ -328,15 +328,15 @@ class MonitorOrchestrator:
         data.append(MICROCHIP_STOP_BYTE)
         return data
 
-class CustomThread(threading.Thread):
-    def __init__(self, location, createdtime):
-        threading.Thread.__init__(self)
-        self.createdtime = createdtime
-        self.location = location
-        self.value = None
-    def run(self):
-        self.value = sct.grab(self.location)
-        print("Finished at: ", time.time() - self.createdtime)
+# class CustomThread(threading.Thread):
+#     def __init__(self, location, createdtime):
+#         threading.Thread.__init__(self)
+#         self.createdtime = createdtime
+#         self.location = location
+#         self.value = None
+#     def run(self):
+#         self.value = sct.grab(self.location)
+#         print("Finished at: ", time.time() - self.createdtime)
 
 class MonitorBorderPixels:
     def __init__(self, pixel_height, pixel_width, monitor_id):
@@ -392,32 +392,45 @@ class MonitorBorderPixels:
             c = self.pix_right[n]
         return "#%02x%02x%02x" % (c[0], c[1], c[2])
 
-
-
     def update(self):
         start_time = time.time()
 
-        ### THIS IS WHAT IS SLOW
+        ### THIS IS WHAT IS SLOW, original method
         # scr_top = sct.grab(self.TOP)
         # scr_bottom = sct.grab(self.BOTTOM)
         # scr_left = sct.grab(self.LEFT)
         # scr_right = sct.grab(self.RIGHT)
-        topthread = CustomThread(self.TOP, start_time)
-        bottomthread = CustomThread(self.BOTTOM, start_time)
-        leftthread = CustomThread(self.LEFT, start_time)
-        rightthread = CustomThread(self.RIGHT, start_time)
-        topthread.start()
-        bottomthread.start()
-        leftthread.start()
-        rightthread.start()
-        topthread.join()
-        bottomthread.join()
-        leftthread.join()
-        rightthread.join()
-        scr_top = topthread.value
-        scr_bottom = bottomthread.value
-        scr_left = leftthread.value
-        scr_right = rightthread.value
+
+        # # threading method
+        # topthread = CustomThread(self.TOP, start_time)
+        # bottomthread = CustomThread(self.BOTTOM, start_time)
+        # leftthread = CustomThread(self.LEFT, start_time)
+        # rightthread = CustomThread(self.RIGHT, start_time)
+        # topthread.start()
+        # bottomthread.start()
+        # leftthread.start()
+        # rightthread.start()
+        # topthread.join()
+        # bottomthread.join()
+        # leftthread.join()
+        # rightthread.join()
+        # scr_top = topthread.value
+        # scr_bottom = bottomthread.value
+        # scr_left = leftthread.value
+        # scr_right = rightthread.value
+
+        # new method, just get the entire screen and work with that
+        scr = sct.grab(        
+            self.monitor["left"], 
+            self.monitor["top"], 
+            self.monitor["left"] + self.monitor["width"], 
+            self.monitor["top"] + self.monitor["height"]
+        )
+        img = Image.frombytes("RGB", scr.size, scr.bgra, "raw", "BGRX")
+        self.pix_left = np.array(img.resize((1, self.pixel_height))).squeeze()
+        self.pix_right = np.array(img.resize((1, self.pixel_height))).squeeze()
+        self.pix_top = np.array(img.resize((self.pixel_width, 1))).squeeze()
+        self.pix_bottom = np.array(img.resize((self.pixel_width, 1))).squeeze()
 
         print("- - Monitor grab time: ", time.time() - start_time)
         
