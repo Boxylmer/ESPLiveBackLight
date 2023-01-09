@@ -66,6 +66,7 @@ def bottom_right_corner(id):
     return sct.monitors[id]["left"] + sct.monitors[id]["width"], sct.monitors[id]["top"] + sct.monitors[id]["height"]
 
 
+
 class MonitorOrchestrator:
     PX_TOLERANCE = 100 # n-pixels for monitor borders to be considered touching
     MONITOR_LIMIT = 50
@@ -344,6 +345,8 @@ class MonitorOrchestrator:
         data.append(MICROCHIP_STOP_BYTE)
         return data
 
+
+
 class MonitorBorderPixels:
     def __init__(self, pixel_height, pixel_width, monitor_id):
         self.monitor_id = monitor_id
@@ -458,11 +461,11 @@ class MonitorBorderPixels:
         self.pix_top = np.array(self.img.crop(self.LOCAL_TOP).resize((self.pixel_width, 1))).squeeze()
         self.pix_bottom = np.array(self.img.crop(self.LOCAL_BOTTOM).resize((self.pixel_width, 1))).squeeze()
 
-    
     def get_top(self): return self.pix_top
     def get_bottom(self): return self.pix_bottom
     def get_left(self): return self.pix_left
     def get_right(self): return self.pix_right
+
 
 #### define drawing things
 class CanvasGrid:
@@ -543,6 +546,8 @@ class CanvasGrid:
         self.canvas.itemconfigure(self.bottom_text, text=self._get_side_text('d'))
         self.canvas.itemconfigure(self.left_text, text=self._get_side_text('l'))
         self.canvas.itemconfigure(self.right_text, text=self._get_side_text('r'))
+
+       
             
 mbps = []
 monitor_ids = find_monitor_ids()
@@ -577,8 +582,6 @@ edge_mode_check = tk.Checkbutton(optionsframe, variable=edge_mode_var, command=t
 edge_mode_check.pack(side=tk.LEFT)
 optionsframe.pack(expand=False)
 
-
-
 canvases = []  # we might not need to save these just yet
 
 grids = []
@@ -601,10 +604,8 @@ for i, monitor_id in enumerate(monitor_ids):
 monitorframe.pack(expand=True, fill=tk.BOTH)
 # load the save file and set default values
 
-
 # Set the size of the window
 window.geometry("700x350")
-
 
 # Define a function for quit the window
 def quit_window(icon, item):
@@ -631,11 +632,9 @@ def hide_window():
 
 window.protocol('WM_DELETE_WINDOW', hide_window)   
 
-
 plist = [x.device for x in list(serial.tools.list_ports.comports())]
 print(plist)
 ser = Serial(plist[0], 115200, timeout=0.0, parity=serial.PARITY_NONE)
-
 
 def ping_model():
     global SOFTKILL_MODEL
@@ -671,6 +670,5 @@ while True:
     window.update_idletasks()
     window.update()
     remaining_time = max(0, GUI_POLLING_TIME_MS/1000 - (time.time() - last_refresh_time))
-    # print(GUI_POLLING_TIME_MS/1000 - (time.time() - last_refresh_time))
 
     time.sleep(remaining_time)
