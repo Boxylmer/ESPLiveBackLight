@@ -60,6 +60,9 @@ def find_monitor_ids():
     return [*range(1, len(sct.monitors))]
     # return [0]
 
+def find_serial_ports():
+    return [x.device for x in list(serial.tools.list_ports.comports())]
+
 def top_left_corner(id):
     return sct.monitors[id]["left"], sct.monitors[id]["top"]
 def bottom_left_corner(id):
@@ -562,6 +565,7 @@ window = tk.Tk()
 window.title("Boxman Fiddlejig")
 
 optionsframe = tk.Frame(window)
+optionsframe.pack(expand=False)
 
 ### TK variables to be used globally 
 edge_mode_var = tk.IntVar()
@@ -583,20 +587,59 @@ def set_edgemode_checkbox(checked):
 # edge mode checkbutton
 edge_mode_check = tk.Checkbutton(optionsframe, variable=edge_mode_var, command=toggle_orchestrator_mode, text="Send only to edges", font=('Helvetica 12 bold'))
 edge_mode_check.pack(side=tk.LEFT)
-optionsframe.pack(expand=False)
 
-# pixel width entry form
 
+# pixel width and height entry form
+pixelframe = tk.Frame(optionsframe)
+def validate_and_handle_pixelwidthentry(entry, action_type) -> bool:
+    result = enter_only_max_two_digits(entry, action_type)
+    if result:
+        print("Pixel width: ", entry)
+        pass # todo, something with the end
+    return result
+def validate_and_handle_pixelheightentry(entry, action_type) -> bool:
+    result = enter_only_max_two_digits(entry, action_type)
+    if result:
+        print("Pixel width: ", entry)
+        pass # todo, something with the end
+    return result
 def enter_only_max_two_digits(entry, action_type) -> bool:
     if action_type == '1' and not entry.isdigit():
         return False
     if action_type == '1' and float(entry) > 100:
         return False
-
     return True
-vcmd = (window.register(enter_only_max_two_digits), '%P', '%d')
-pixelwidthentry = tk.Entry(optionsframe, validate='key', validatecommand=vcmd)
-pixelwidthentry.pack(side=tk.LEFT)
+v_pixelwidthentry = (window.register(validate_and_handle_pixelwidthentry), '%P', '%d')
+v_pixelheightentry = (window.register(validate_and_handle_pixelheightentry), '%P', '%d')
+
+pixelwidthlabel = tk.Label(pixelframe, text="Pixel Width", font=('Helvetica 12 bold'))
+pixelwidthlabel.grid(row=0, column=0)
+pixelwidthentry = tk.Entry(pixelframe, validate='key', validatecommand=v_pixelwidthentry)
+pixelwidthentry.grid(row=0, column=1)
+pixelheightlabel = tk.Label(pixelframe, text="Pixel Height", font=('Helvetica 12 bold'))
+pixelheightlabel.grid(row=1, column=0)
+pixelheightentry = tk.Entry(pixelframe, validate='key', validatecommand=v_pixelheightentry)
+pixelheightentry.grid(row=1, column=1)
+pixelframe.pack(side=tk.LEFT)
+
+portframe = tk.Frame(optionsframe)
+com_port_options = find_serial_ports()
+com_port_selection = tk.StringVar()
+com_port_selection.set("-")
+com_port_dropdown = tk.OptionMenu(portframe, com_port_selection, *com_port_options)
+com_port_dropdown.pack(side=tk.BOTTOM)
+# com_port_options_label = tk.Label(portframe, text="PORT", font=('Helvetica 12 bold'))
+# com_port_options_label.pack(side=tk.TOP)
+def update_com_port_dropdown():
+    # com_port_selection.set('')
+    com_port_dropdown['menu'].delete(0, 'end')
+    new_choices = find_serial_ports()
+    for choice in new_choices:
+        com_port_dropdown['menu'].add_command(label=choice, command=tk._setit(com_port_selection, choice))
+
+com_port_refresh_btn = tk.Button(portframe, text="Refresh Ports", font=('Helvetica 8 bold'), command=update_com_port_dropdown)
+com_port_refresh_btn.pack(side=tk.TOP)
+portframe.pack(side=tk.LEFT)
 
 canvases = []  # we might not need to save these just yet
 
