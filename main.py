@@ -41,8 +41,8 @@ SOFTKILL_MODEL = False
 # img = Image.frombytes("RGB", scr_top.size, scr_top.bgra, "raw", "BGRX")
 # img.show()
 
-WINDOW_BORDER_FRACTION = 0.07
-REFRESH_TIME_MS = 75
+WINDOW_BORDER_FRACTION = 0.01
+REFRESH_TIME_MS = 100
 GUI_POLLING_TIME_MS = 100
 
 MICROCHIP_START_BYTE = 55 # U
@@ -357,7 +357,7 @@ class MonitorBorderPixels:
         self.monitor_id = monitor_id
         self.monitor = sct.monitors[monitor_id]
         
-        self.monitor_bbox = (
+        self.monitor_bbox = (  # todo possibly remove
             self.monitor["left"], 
             self.monitor["top"], 
             self.monitor["left"] + self.monitor["width"], 
@@ -427,9 +427,11 @@ class MonitorBorderPixels:
         )
 
     def update_img(self):
-        scr = sct.grab(self.monitor_bbox)
-        self.img = Image.frombytes("RGB", scr.size, scr.bgra, "raw", "BGRX")
-
+        scr = sct.grab(self.monitor)
+        st = time.time()
+        self.img = Image.frombuffer("RGB", scr.size, scr.bgra, "raw", "BGRX")
+        print("Image conversion time monitor ", self.monitor_id, ": ", time.time() - st)
+    
     def screencapture_subprocess(self):
         last_refresh_time = time.time()
         while True:
@@ -437,7 +439,7 @@ class MonitorBorderPixels:
             if (time.time() - last_refresh_time) * 1000 > REFRESH_TIME_MS:
                 last_refresh_time = time.time()
                 self.update_img()
-                # print("Total frame time for monitor ", self.monitor_id, ": ", time.time() - last_refresh_time)
+                print("Total frame time for monitor ", self.monitor_id, ": ", time.time() - last_refresh_time)
             else:
                 remaining_time = max(0, REFRESH_TIME_MS/1000 - (time.time() - last_refresh_time))
                 time.sleep(remaining_time)
@@ -461,11 +463,13 @@ class MonitorBorderPixels:
         return "#%02x%02x%02x" % (c[0], c[1], c[2])
 
     def update(self):
-        self.pix_left = np.array(self.img.crop(self.LOCAL_LEFT).resize((1, self.pixel_height))).squeeze()
-        self.pix_right = np.array(self.img.crop(self.LOCAL_RIGHT).resize((1, self.pixel_height))).squeeze()
-        self.pix_top = np.array(self.img.crop(self.LOCAL_TOP).resize((self.pixel_width, 1))).squeeze()
-        self.pix_bottom = np.array(self.img.crop(self.LOCAL_BOTTOM).resize((self.pixel_width, 1))).squeeze()
+        start = time.time()
+        self.pix_left = np.asarray(self.img.crop(self.LOCAL_LEFT).resize((1, self.pixel_height))).squeeze()
 
+        self.pix_right = np.asarray(self.img.crop(self.LOCAL_RIGHT).resize((1, self.pixel_height))).squeeze()
+        self.pix_top = np.asarray(self.img.crop(self.LOCAL_TOP).resize((self.pixel_width, 1))).squeeze()
+        self.pix_bottom = np.asarray(self.img.crop(self.LOCAL_BOTTOM).resize((self.pixel_width, 1))).squeeze()
+        print("image update time: ", time.time() - start)
     def get_top(self): return self.pix_top
     def get_bottom(self): return self.pix_bottom
     def get_left(self): return self.pix_left
@@ -713,10 +717,9 @@ def ping_model():
             stream = orchestrator.get_pixel_stream()
             
             ser.write(stream)
-        remaining_time = max(0, REFRESH_TIME_MS/1000 - (time.time() - last_refresh_time))
-        # print(remaining_time)
-        time.sleep(remaining_time)
         # print("Total frame time: ", time.time() - start_time)
+        remaining_time = max(0, REFRESH_TIME_MS/1000 - (time.time() - last_refresh_time))
+        time.sleep(remaining_time)
 threading.Thread(target=ping_model).start()
 
 last_refresh_time = time.time()
