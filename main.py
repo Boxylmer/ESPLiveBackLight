@@ -31,7 +31,7 @@ sct = mss.mss()
 SOFTKILL_MODEL = False
 
 WINDOW_BORDER_FRACTION = 0.05
-REFRESH_TIME_MS = 150
+REFRESH_TIME_MS = 80
 GUI_POLLING_TIME_MS = 100
 
 MICROCHIP_START_BYTE = 55 # U
@@ -63,12 +63,15 @@ def bottom_right_corner(id):
 class Settings:
     PATH = "settings.json"
     DEFAULTJSON = '{"edgemode": true, "pixel_width": 5, "pixel_height": 5, "last_com": null}'
+    DEFAULT_DATA = json.loads(DEFAULTJSON)
+    DEFAULT_DATA["enabled_monitor_ids"] = []
+
     def __init__(self) -> None:
         if os.path.exists(Settings.PATH):
             with open(Settings.PATH, 'r') as f:
                 self.data = json.load(f)
         else:
-            self.data = json.loads(Settings.DEFAULTJSON)
+            self.data = Settings.DEFAULT_DATA
             self.updatefile()
 
     def updatefile(self):
@@ -88,6 +91,9 @@ class Settings:
     def get_last_com_port(self):
         return self.data["last_com"]
 
+    def get_enabled_monitor_ids(self):
+        return self.data["enabled_monitor_ids"]
+
     # setters
     def set_edgemode_checkbox(self, is_in_edgemode):
         self.data["edgemode"] = is_in_edgemode
@@ -104,6 +110,12 @@ class Settings:
     def set_last_com_port(self, port):
         self.data["last_com"] = port
         self.updatefile()
+
+    def set_enabled_monitor_ids(self, ids):
+        self.data["enabled_monitor_ids"] = ids
+        self.updatefile()
+
+
 settings = Settings()
 
 
@@ -160,7 +172,6 @@ class MonitorOrchestrator:
             if candidate_distance < best_distance:
                 best_candidate_idx = idx
                 best_distance = candidate_distance
-        # print(best_candidate_idx)
         return best_candidate_idx
 
     def _find_monitor_grid_positions(self):
@@ -178,27 +189,20 @@ class MonitorOrchestrator:
         while len(remaining_position_ids) > 0:
             found_one_during_loop = False  # sets to true if a monitor was in a non-grid position
             for pid in remaining_position_ids:
-                # print("Looking for location of monitor: ", pid)
                 if found_one_during_loop: break
                 for d in dirs:
-                    # print("-Looking in direction: ", d)
                     if found_one_during_loop: break
                     original_position = top_left_corner(pid)
                     possible_known_position = original_position[0] - d[0] * sct.monitors[pid]["width"], original_position[1] - d[1] * sct.monitors[pid]["height"]
 
                     for pid_known in naive_ids_to_position.copy().keys():
-                        # print("--currently known positions: ", naive_ids_to_position)
-                        # print("--possibly known position: ", possible_known_position)
                         if found_one_during_loop: break
                         known_position = top_left_corner(pid_known)
-                        # print("--comparing to known position: ", known_position)
                         if self._dist(possible_known_position, known_position) < MonitorOrchestrator.PX_TOLERANCE:
                             location = naive_ids_to_position[pid_known][0] + d[0], naive_ids_to_position[pid_known][1] + d[1]
                             naive_ids_to_position[pid] = location
-                            # print("---FOUND POSITION: monitor ", pid, " at location ", location)
                             remaining_position_ids.remove(pid)
                             found_one_during_loop = True
-                            # raise(Exception("---"))
             if not found_one_during_loop:
                 raise(Exception("One of the montiors was out of tolerance to be fit into a cardinal grid system!"))
 
@@ -315,11 +319,15 @@ class MonitorOrchestrator:
     def set_path_mode(self, mode): 
         self.path_mode = mode
 
+    def set_enabled_monitors(self, enabled_ids):
+        for pid in monitor_ids: self.monitor_id_to_border_object[pid].disable()
+        for pid in enabled_ids:self.monitor_id_to_border_object[pid].enable()
+
     def update(self):
         start = time.time()
         for mbp in self.monitor_borders:
             mbp.update()
-        # print("Total monitor processing time without screenshots: ", time.time() - start)
+      
 
     #getters
 
@@ -408,6 +416,8 @@ class MonitorBorderPixels:
             self.monitor["top"] + self.monitor["height"]
         )
 
+        self.enabled = True
+
         self.refresh_screen_size()
         self._update_border_dimensions(pixel_height, pixel_width)
         self.PENDING_UPDATE = False
@@ -477,41 +487,51 @@ class MonitorBorderPixels:
     def screencapture_subprocess(self):        
         st = time.time()
         self.update_img()
-        # print("Total screenshot time for monitor ", self.monitor_id, ": ", time.time() - st)
         self.pix_left = np.asarray(self.img.crop(self.LOCAL_LEFT).resize((1, self.pixel_height))).squeeze()
         self.pix_right = np.asarray(self.img.crop(self.LOCAL_RIGHT).resize((1, self.pixel_height))).squeeze()
         self.pix_top = np.asarray(self.img.crop(self.LOCAL_TOP).resize((self.pixel_width, 1))).squeeze()
         self.pix_bottom = np.asarray(self.img.crop(self.LOCAL_BOTTOM).resize((self.pixel_width, 1))).squeeze()
         self.PENDING_UPDATE = False
+        print("Total screenshot time for monitor ", self.monitor_id, ": ", time.time() - st)
 
     def _update_border_dimensions(self, pixel_height, pixel_width):
         self.pixel_height = pixel_height
         self.pixel_width = pixel_width
 
     def get_color(self, n, location):
-        if location == "TOP":
-            c = self.pix_top[n]
-        elif location == "BOTTOM":
-            c = self.pix_bottom[n]
-        elif location == "LEFT":
-            c = self.pix_left[n]
-        elif location == "RIGHT":
-            c = self.pix_right[n]
-        return "#%02x%02x%02x" % (c[0], c[1], c[2])
+        if self.enabled:
+            if location == "TOP":
+                c = self.pix_top[n]
+            elif location == "BOTTOM":
+                c = self.pix_bottom[n]
+            elif location == "LEFT":
+                c = self.pix_left[n]
+            elif location == "RIGHT":
+                c = self.pix_right[n]
+            return "#%02x%02x%02x" % (c[0], c[1], c[2])
+        else: return "#%02x%02x%02x" % (0, 0, 0)
 
     def update(self):
-        start = time.time()
-
-        if not self.PENDING_UPDATE:
+        if not self.PENDING_UPDATE and self.enabled:
             self.PENDING_UPDATE = True
             threading.Thread(target=self.screencapture_subprocess).start()
-        # print("image update time: ", time.time() - start)
+       
+    
+    def enable(self): self.enabled = True
+    def disable(self): self.enabled = False
 
-
-    def get_top(self): return self.pix_top
-    def get_bottom(self): return self.pix_bottom
-    def get_left(self): return self.pix_left
-    def get_right(self): return self.pix_right
+    def get_top(self): 
+        if self.enabled: return self.pix_top
+        else: return []
+    def get_bottom(self): 
+        if self.enabled: return self.pix_bottom
+        else: return []
+    def get_left(self): 
+        if self.enabled: return self.pix_left
+        else: return []
+    def get_right(self): 
+        if self.enabled: return self.pix_right
+        else: return []
 
 
 #### define drawing things
@@ -554,7 +574,8 @@ class CanvasGrid:
 
     def _get_side_text(self, side):
         result = self.orchestrator.get_order_of_edge(self.mbpv.monitor_id, side)
-        if result == None: result = "-"
+        if not self.mbpv.enabled: result = "-"
+        elif result == None: result = "-"
         elif result == 0: result = "start here!"
         else: result = str(result)
         
@@ -564,7 +585,6 @@ class CanvasGrid:
         return result 
 
     def update(self):
-        start = time.time()
         for i, pid in enumerate(self.top_pixel_ids):
             self.canvas.coords(pid, self._pixel_coords(i, "TOP"))
             self.canvas.itemconfig(pid, fill=self.mbpv.get_color(i, "TOP"))
@@ -593,13 +613,13 @@ class CanvasGrid:
         self.canvas.itemconfigure(self.bottom_text, text=self._get_side_text('d'))
         self.canvas.itemconfigure(self.left_text, text=self._get_side_text('l'))
         self.canvas.itemconfigure(self.right_text, text=self._get_side_text('r'))
-        # print("GUI update time: ", time.time() - start)
             
 mbps = []
 monitor_ids = find_monitor_ids()
 for i, monitor_id in enumerate(monitor_ids):
     mbps.append(MonitorBorderPixels(settings.get_pixel_width(), settings.get_pixel_height(), monitor_id))
 orchestrator = MonitorOrchestrator(mbps)
+orchestrator.set_enabled_monitors(settings.get_enabled_monitor_ids())
 
 
 class SerialConnection:
@@ -749,7 +769,28 @@ class GUI:
         self.com_port_refresh_btn.pack(side=tk.TOP)
         self.portframe.pack(side=tk.LEFT)
 
-        
+        self.enabled_monitors_frame = tk.Frame(self.optionsframe)
+        self.monitor_enabled_vars = []
+        self.monitor_enabled_checks = []
+        enabled_ids = self.settings.get_enabled_monitor_ids()
+        for monitor_id in self.orchestrator.monitor_ids:
+            var = tk.IntVar()
+            chk = tk.Checkbutton(
+                self.enabled_monitors_frame, 
+                variable=var, 
+                command=self._callback_a_monitors_activation_state_changed, 
+                text="Enable Monitor " + str(monitor_id), 
+                font=('Helvetica 8 bold')
+            )
+            if monitor_id in enabled_ids:
+                var.set(1)
+
+            chk.pack(side=tk.BOTTOM)
+            
+            self.monitor_enabled_vars.append(var)
+            self.monitor_enabled_checks.append(chk)
+        self.enabled_monitors_frame.pack(side=tk.LEFT)
+    
         self.optionsframe.pack(expand=False)
         self.monitorframe.pack(expand=True, fill=tk.BOTH)
         # load the save file and set default values
@@ -757,7 +798,6 @@ class GUI:
         # Set the size of the window
         self.window.geometry("700x350")
         self.window.protocol('WM_DELETE_WINDOW', self.hide_window)   
-
 
     def _callback_com_port_dropdown_selection_updated(self, var, index, mode):
             print("new port selected: ", self.com_port_selection.get())
@@ -788,9 +828,18 @@ class GUI:
             self._the_pixel_dimensions_changed()
         return result
 
+    def _callback_a_monitors_activation_state_changed(self):
+        print("Monitor enabled states changed!")
+        enabled_ids = []
+        for i, monitor_id in enumerate(self.orchestrator.monitor_ids):
+            if self.monitor_enabled_vars[i].get():
+                enabled_ids.append(monitor_id)
+        self.settings.set_enabled_monitor_ids(enabled_ids)
+        self.orchestrator.set_enabled_monitors(enabled_ids)
+
+
     @staticmethod
     def _enter_only_max_two_digits(entry, action_type) -> bool:
-        print("testing...", entry)
         if action_type == '1' and not entry.isdigit():
             return False
         if action_type == '1' and float(entry) > 100:
@@ -871,7 +920,6 @@ def ping_model():
     global SOFTKILL_MODEL
     last_refresh_time = time.time()
     while True:
-        start_time = time.time()
         if SOFTKILL_MODEL:
             SOFTKILL_MODEL = False
             exit()
@@ -887,7 +935,6 @@ def ping_model():
             except:
                 print("WARNING: Model loop failed to ping.")
             
-        # print("Total frame time: ", time.time() - start_time)
         remaining_time = max(0, REFRESH_TIME_MS/1000 - (time.time() - last_refresh_time))
 
 
