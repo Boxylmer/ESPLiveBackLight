@@ -278,6 +278,12 @@ class MonitorOrchestrator:
     def set_path_mode(self, mode): 
         self.path_mode = mode
 
+    def update(self):
+        start = time.time()
+        for mbp in self.monitor_borders:
+            mbp.update()
+        print("Total monitor processing time without screenshots: ", time.time() - start)
+
     #getters
 
     def get_monitor_grid_position_by_id(self, id):
@@ -428,9 +434,7 @@ class MonitorBorderPixels:
 
     def update_img(self):
         scr = sct.grab(self.monitor)
-        st = time.time()
         self.img = Image.frombuffer("RGB", scr.size, scr.bgra, "raw", "BGRX")
-        print("Image conversion time monitor ", self.monitor_id, ": ", time.time() - st)
     
     def screencapture_subprocess(self):
         last_refresh_time = time.time()
@@ -439,7 +443,7 @@ class MonitorBorderPixels:
             if (time.time() - last_refresh_time) * 1000 > REFRESH_TIME_MS:
                 last_refresh_time = time.time()
                 self.update_img()
-                print("Total frame time for monitor ", self.monitor_id, ": ", time.time() - last_refresh_time)
+                print("Total screenshot time for monitor ", self.monitor_id, ": ", time.time() - last_refresh_time)
             else:
                 remaining_time = max(0, REFRESH_TIME_MS/1000 - (time.time() - last_refresh_time))
                 time.sleep(remaining_time)
@@ -465,7 +469,6 @@ class MonitorBorderPixels:
     def update(self):
         start = time.time()
         self.pix_left = np.asarray(self.img.crop(self.LOCAL_LEFT).resize((1, self.pixel_height))).squeeze()
-
         self.pix_right = np.asarray(self.img.crop(self.LOCAL_RIGHT).resize((1, self.pixel_height))).squeeze()
         self.pix_top = np.asarray(self.img.crop(self.LOCAL_TOP).resize((self.pixel_width, 1))).squeeze()
         self.pix_bottom = np.asarray(self.img.crop(self.LOCAL_BOTTOM).resize((self.pixel_width, 1))).squeeze()
@@ -527,6 +530,7 @@ class CanvasGrid:
 
 
     def update(self):
+        start = time.time()
         for i, pid in enumerate(self.top_pixel_ids):
             self.canvas.coords(pid, self._pixel_coords(i, "TOP"))
             self.canvas.itemconfig(pid, fill=self.mbpv.get_color(i, "TOP"))
@@ -555,6 +559,7 @@ class CanvasGrid:
         self.canvas.itemconfigure(self.bottom_text, text=self._get_side_text('d'))
         self.canvas.itemconfigure(self.left_text, text=self._get_side_text('l'))
         self.canvas.itemconfigure(self.right_text, text=self._get_side_text('r'))
+        print("GUI update time: ", time.time() - start)
 
        
             
@@ -710,8 +715,7 @@ def ping_model():
         if (time.time() - last_refresh_time) * 1000 > REFRESH_TIME_MS:
             last_refresh_time = time.time()
             try:
-                for mbpv in mbps:
-                    mbpv.update() 
+                orchestrator.update()
             except:
                 print("WARNING: Model loop failed to ping.")
             stream = orchestrator.get_pixel_stream()
