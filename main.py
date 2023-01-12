@@ -30,9 +30,9 @@ mss.windows.CAPTUREBLT = 0
 sct = mss.mss()
 SOFTKILL_MODEL = False
 
-WINDOW_BORDER_FRACTION = 0.01
-REFRESH_TIME_MS = 300
-GUI_POLLING_TIME_MS = 150
+WINDOW_BORDER_FRACTION = 0.05
+REFRESH_TIME_MS = 150
+GUI_POLLING_TIME_MS = 100
 
 MICROCHIP_START_BYTE = 55 # U
 MICROCHIP_STOP_BYTE = 10  # /n
@@ -603,9 +603,13 @@ orchestrator = MonitorOrchestrator(mbps)
 
 
 class SerialConnection:
+
+    MAX_ATTEMPTS_BEFORE_RECONNECT = 15
+
     def __init__(self) -> None:
         self.port = None
         self.connection = None
+        self.attempt_counter = 0
 
     def connect(self, port):
         print("Connecting to ", port)
@@ -636,8 +640,14 @@ class SerialConnection:
 
     def write(self, data):
         if self.connection != None and self.isconnected():
-            try: self.connection.write(data)
-            except: print("Warning: Could not write to serial buffer.")
+            try: 
+                self.connection.write(data)
+                self.attempt_counter = 0
+            except: 
+                print("Warning: Could not write to serial buffer.")
+                self.attempt_counter += 1
+            if self.attempt_counter > SerialConnection.MAX_ATTEMPTS_BEFORE_RECONNECT:
+                self.disconnect()
 
     def isconnected(self):
         if self.connection == None: return False
