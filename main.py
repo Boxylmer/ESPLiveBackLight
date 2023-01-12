@@ -30,19 +30,6 @@ mss.windows.CAPTUREBLT = 0
 sct = mss.mss()
 SOFTKILL_MODEL = False
 
-# def get_master_screenshot():
-#     """Get a screenshot of the overall virtual screen."""
-#     complete_screengrab = sct.grab(sct.monitors[0])
-#     complete_screenshot = Image.frombytes("RGB", complete_screengrab.size, complete_screengrab.bgra, "raw", "BGRX")
-#     return complete_screenshot
-# get_master_screenshot()
-# get_master_screenshot().show()
-
-# monitor = sct.monitors[1]
-# scr_top = sct.grab((monitor["left"], monitor["top"], monitor["left"] + monitor["width"], monitor["top"] + monitor["height"]))
-# img = Image.frombytes("RGB", scr_top.size, scr_top.bgra, "raw", "BGRX")
-# img.show()
-
 WINDOW_BORDER_FRACTION = 0.01
 REFRESH_TIME_MS = 300
 GUI_POLLING_TIME_MS = 150
@@ -62,9 +49,6 @@ def find_monitor_ids():
     return [*range(1, len(sct.monitors))]
     # return [0]
 
-def find_serial_ports():
-    return [x.device for x in list(serial.tools.list_ports.comports())]
-
 def top_left_corner(id):
     return sct.monitors[id]["left"], sct.monitors[id]["top"]
 def bottom_left_corner(id):
@@ -73,6 +57,8 @@ def top_right_corner(id):
     return sct.monitors[id]["left"] + sct.monitors[id]["width"], sct.monitors[id]["top"]
 def bottom_right_corner(id):
     return sct.monitors[id]["left"] + sct.monitors[id]["width"], sct.monitors[id]["top"] + sct.monitors[id]["height"]
+
+
 
 class Settings:
     PATH = "settings.json"
@@ -119,6 +105,7 @@ class Settings:
         self.data["last_com"] = port
         self.updatefile()
 settings = Settings()
+
 
 class MonitorOrchestrator:
     PX_TOLERANCE = 100 # n-pixels for monitor borders to be considered touching
@@ -408,6 +395,7 @@ class MonitorOrchestrator:
         data.append(MICROCHIP_STOP_BYTE)
         return data
 
+
 class MonitorBorderPixels:
     def __init__(self, pixel_width, pixel_height, monitor_id):
         self.monitor_id = monitor_id
@@ -426,7 +414,6 @@ class MonitorBorderPixels:
         self.update_img()
 
         self.update()
-        # threading.Thread(target=self.screencapture_subprocess).start()
 
     def refresh_screen_size(self):
 
@@ -598,7 +585,7 @@ class CanvasGrid:
 
         self.canvas.coords(self.top_text, self.canvas.winfo_width()/2, self._pixel_coords(0, "LEFT")[1])
         self.canvas.coords(self.bottom_text, self.canvas.winfo_width()/2, self._pixel_coords(0, "BOTTOM")[1])
-        self.canvas.coords(self.left_text, self._pixel_coords(0, "TOP")[3], self.canvas.winfo_height()/2)
+        self.canvas.coords(self.left_text, self._pixel_coords(0, "LEFT")[2], self.canvas.winfo_height()/2)
         self.canvas.coords(self.right_text, self._pixel_coords(0, "RIGHT")[0], self.canvas.winfo_height()/2)
 
         
@@ -607,8 +594,6 @@ class CanvasGrid:
         self.canvas.itemconfigure(self.left_text, text=self._get_side_text('l'))
         self.canvas.itemconfigure(self.right_text, text=self._get_side_text('r'))
         # print("GUI update time: ", time.time() - start)
-
-       
             
 mbps = []
 monitor_ids = find_monitor_ids()
@@ -617,10 +602,62 @@ for i, monitor_id in enumerate(monitor_ids):
 orchestrator = MonitorOrchestrator(mbps)
 
 
+class SerialConnection:
+    def __init__(self) -> None:
+        self.port = None
+        self.connection = None
+
+    def connect(self, port):
+        ports = self.find_serial_ports()
+        if port is None: 
+            print("Port was not provided")
+            return
+
+        self.port = port  # todo need a keepalive 
+
+        if self.connection != None:
+            if self.isconnected: self.disconnect()
+        else:
+            if port in ports:
+                try:
+                    self.connection = Serial(port, 115200, timeout=0.0, parity=serial.PARITY_NONE)
+                except:
+                    self.connection = None
+                    print("Connecting to serial failed.")
+            else: print("Port doesn't exist.")
+
+    def disconnect(self):
+        try:
+            self.connection.close()
+        except:
+            print("Could not close serial port.")
+        self.serial = None
+
+    def write(self, data):
+        if self.connection != None and self.isconnected():
+            try: self.connection.write(data)
+            except: print("Warning: Could not write to serial buffer.")
+
+    def isconnected(self):
+        if self.connection == None: return False
+
+        if self.connection.isOpen():
+            return True
+        else:
+            return False
+
+    @staticmethod
+    def find_serial_ports():
+        return [x.device for x in list(serial.tools.list_ports.comports())]
+
+ser = SerialConnection()
+ser.connect(settings.get_last_com_port())
+
 class GUI:
-    def __init__(self, orchestrator, settings) -> None:
+    def __init__(self, orchestrator, settings, ser) -> None:
         self.orchestrator = orchestrator
         self.settings = settings
+        self.ser = ser
         
         # make the structure
         self.window = tk.Tk()
@@ -641,7 +678,6 @@ class GUI:
             frame.grid(row=r, column=c, sticky=tk.NSEW)
             self.monitorframe.grid_columnconfigure(c, weight=1)
             self.monitorframe.grid_rowconfigure(r, weight=1)
-
 
         # options frame
         self.optionsframe = tk.Frame(self.window)
@@ -676,11 +712,11 @@ class GUI:
         self.pixelheightentryvar.set(settings.get_pixel_height())
         self.pixelheightentry = tk.Entry(self.pixelframe, validate='key', validatecommand=self.v_pixelheightentry, textvariable=self.pixelheightentryvar)
         self.pixelheightentry.grid(row=1, column=1)
-        # self.pixelheightentry.set(settings.get_pixel_height())
+        
         self.pixelframe.pack(side=tk.LEFT)
 
         self.portframe = tk.Frame(self.optionsframe)
-        self.com_port_options = find_serial_ports()  # todo refactor into an update button that works
+        self.com_port_options = SerialConnection.find_serial_ports()  # todo refactor into an update button that works
         self.com_port_selection = tk.StringVar()
         self.com_port_selection.trace_variable("w", self._callback_com_port_dropdown_selection_updated)
 
@@ -694,9 +730,6 @@ class GUI:
         self.com_port_refresh_btn.pack(side=tk.TOP)
         self.portframe.pack(side=tk.LEFT)
 
-       
-
-        
         
         self.optionsframe.pack(expand=False)
         self.monitorframe.pack(expand=True, fill=tk.BOTH)
@@ -710,7 +743,7 @@ class GUI:
     def _callback_com_port_dropdown_selection_updated(self, var, index, mode):
             print(self.com_port_selection.get())
             self.settings.set_last_com_port(self.com_port_selection.get())
-            # todo and now we would also call a function that updates the serial interface. Maybe in a serial object
+            self.ser.connect(self.com_port_selection.get())
 
     def _callback_validate_and_handle_pixelwidthentry(self, entry, action_type) -> bool:
         result = GUI._enter_only_max_two_digits(entry, action_type)
@@ -795,7 +828,7 @@ class GUI:
     def update_com_port_dropdown(self):
         # com_port_selection.set('')
         self.com_port_dropdown['menu'].delete(0, 'end')
-        new_choices = find_serial_ports()
+        new_choices = SerialConnection.find_serial_ports()
         for choice in new_choices:
             self.com_port_dropdown['menu'].add_command(label=choice, command=tk._setit(self.com_port_selection, choice))
 
@@ -808,14 +841,13 @@ class GUI:
         for grid in self.grids:
             grid.update()
 
+gui = GUI(orchestrator, settings, ser)
+
+# plist = SerialConnection.get_
+# print(plist)
+# ser = Serial(plist[0], 115200, timeout=0.0, parity=serial.PARITY_NONE)
 
 
-plist = [x.device for x in list(serial.tools.list_ports.comports())]
-print(plist)
-ser = Serial(plist[0], 115200, timeout=0.0, parity=serial.PARITY_NONE)
-
-
-gui = GUI(orchestrator, settings)
 
 
 def ping_model():
