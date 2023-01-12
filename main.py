@@ -42,8 +42,8 @@ SOFTKILL_MODEL = False
 # img.show()
 
 WINDOW_BORDER_FRACTION = 0.01
-REFRESH_TIME_MS = 250
-GUI_POLLING_TIME_MS = 100
+REFRESH_TIME_MS = 300
+GUI_POLLING_TIME_MS = 150
 
 MICROCHIP_START_BYTE = 55 # U
 MICROCHIP_STOP_BYTE = 10  # /n
@@ -568,138 +568,298 @@ for i, monitor_id in enumerate(monitor_ids):
     mbps.append(MonitorBorderPixels(5, 14, monitor_id))
 orchestrator = MonitorOrchestrator(mbps)
 
-#### make tkinter gui
-window = tk.Tk()
-window.title("Boxman Fiddlejig")
 
-optionsframe = tk.Frame(window)
-optionsframe.pack(expand=False)
+
+class GUI:
+    def __init__(self, orchestrator) -> None:
+        self.orchestrator = orchestrator
+        
+        # make the structure
+        self.window = tk.Tk()
+        self.window.title("Boxman Fiddlejig")
+
+        self.optionsframe = tk.Frame(self.window)
+        self.optionsframe.pack(expand=False)
+
+        self.edge_mode_var = tk.IntVar()
+        
+        
+        self.edge_mode_check = tk.Checkbutton(
+            self.optionsframe, 
+            variable=self.edge_mode_var, 
+            command=self.toggle_orchestrator_mode, 
+            text="Send only to edges", 
+            font=('Helvetica 12 bold')
+        )
+
+        self.edge_mode_check.pack(side=tk.LEFT)
+
+        # pixel width and height entry form
+        self.pixelframe = tk.Frame(self.optionsframe)
+        
+
+        self.v_pixelwidthentry = (self.window.register(self.validate_and_handle_pixelwidthentry), '%P', '%d')  # todo remove parenthesis? 
+        self.v_pixelheightentry = (self.window.register(self.validate_and_handle_pixelheightentry), '%P', '%d')
+
+        self.pixelwidthlabel = tk.Label(self.pixelframe, text="Pixel Width", font=('Helvetica 12 bold'))
+        self.pixelwidthlabel.grid(row=0, column=0)
+        self.pixelwidthentry = tk.Entry(self.pixelframe, validate='key', validatecommand=self.v_pixelwidthentry)
+        self.pixelwidthentry.grid(row=0, column=1)
+        self.pixelheightlabel = tk.Label(self.pixelframe, text="Pixel Height", font=('Helvetica 12 bold'))
+        self.pixelheightlabel.grid(row=1, column=0)
+        self.pixelheightentry = tk.Entry(self.pixelframe, validate='key', validatecommand=self.v_pixelheightentry)
+        self.pixelheightentry.grid(row=1, column=1)
+        self.pixelframe.pack(side=tk.LEFT)
+
+        self.portframe = tk.Frame(self.optionsframe)
+        self.com_port_options = find_serial_ports()  # todo refactor into an update button that works
+        self.com_port_selection = tk.StringVar()
+        self.com_port_selection.set("-")
+        self.com_port_dropdown = tk.OptionMenu(self.portframe, self.com_port_selection, *self.com_port_options)
+        self.com_port_dropdown.pack(side=tk.BOTTOM)
+        # com_port_options_label = tk.Label(portframe, text="PORT", font=('Helvetica 12 bold'))
+        # com_port_options_label.pack(side=tk.TOP)
+        
+
+        self.com_port_refresh_btn = tk.Button(self.portframe, text="Refresh Ports", font=('Helvetica 8 bold'), command=self.update_com_port_dropdown)
+        self.com_port_refresh_btn.pack(side=tk.TOP)
+        self.portframe.pack(side=tk.LEFT)
+
+        self.canvases = []  # we might not need to save these just yet
+
+        self.grids = []
+        # monitor_active_buttons = []
+        # widths_input_fields = []
+        # heights_input_fields = []
+
+        self.monitorframe = tk.Frame(self.window)
+        for i, monitor_id in enumerate(monitor_ids):
+            frame = tk.Frame(self.monitorframe)
+            self.canvases.append(tk.Canvas(frame))
+            self.canvases[i].pack(expand=True, fill=tk.BOTH)
+            self.grids.append(CanvasGrid(self.canvases[i], mbps[i], self.orchestrator))
+
+            c, r = orchestrator.get_monitor_grid_position_by_id(monitor_id)
+            frame.grid(row=r, column=c, sticky=tk.NSEW)
+            self.monitorframe.grid_columnconfigure(c, weight=1)
+            self.monitorframe.grid_rowconfigure(r, weight=1)
+
+        self.monitorframe.pack(expand=True, fill=tk.BOTH)
+        # load the save file and set default values
+
+        # Set the size of the window
+        self.window.geometry("700x350")
+        self.window.protocol('WM_DELETE_WINDOW', self.hide_window)   
+
+    def validate_and_handle_pixelwidthentry(self, entry, action_type) -> bool:
+        result = GUI.enter_only_max_two_digits(entry, action_type)
+        if result:
+            print("Pixel width: ", entry)
+            pass # todo, something with the end
+        return result
+
+    def validate_and_handle_pixelheightentry(self, entry, action_type) -> bool:
+        result = GUI.enter_only_max_two_digits(entry, action_type)
+        if result:
+            print("Pixel width: ", entry)
+            pass # todo, something with the end
+        return result
+
+    @classmethod
+    def enter_only_max_two_digits(entry, action_type) -> bool:
+        if action_type == '1' and not entry.isdigit():
+            return False
+        if action_type == '1' and float(entry) > 100:
+            return False
+        return True
+
+    # Define a function for quit the window
+    def quit_window(self, icon, item):
+        global SOFTKILL_MODEL
+        SOFTKILL_MODEL = True
+        # for mbp in mbps: mbp.terminate_subprocess()
+        icon.stop()
+        self.window.destroy()
+        exit()
+
+    # Define a function to show the window again
+    def show_window(self, icon, item):
+        icon.stop()
+        self.window.after(0, self.window.deiconify())
+
+    # Hide the window and show on the system taskbar
+    def hide_window(self):
+        self.window.withdraw()
+        image=Image.open("think.ico")
+        menu=(
+            item('Quit', self.quit_window), 
+            item('Show', self.show_window, default=True),)
+        self.icon=pystray.Icon("name", image, "My System Tray Icon", menu)
+        self.icon.run()
+    
+    def toggle_orchestrator_mode(self):
+        if self.edge_mode_var.get() == 1:
+            self.orchestrator.set_path_mode('border')
+        else:
+            self.orchestrator.set_path_mode('all')
+
+    def set_edgemode_checkbox(self, checked):
+        if checked == True:
+            self.edge_mode_var.set(1)
+            return
+        elif checked == False:
+            self.edge_mode_var.set(0)
+            return
+        else: raise Exception("Invalid input!")
+
+
+    def update_com_port_dropdown(self):
+        # com_port_selection.set('')
+        self.com_port_dropdown['menu'].delete(0, 'end')
+        new_choices = find_serial_ports()
+        for choice in new_choices:
+            self.com_port_dropdown['menu'].add_command(label=choice, command=tk._setit(self.com_port_selection, choice))
+
+
+    def update_tk(self):
+        self.window.update_idletasks()
+        self.window.update()
+
+    def update_grid(self):
+        for grid in self.grids:
+            grid.update()
+#### make tkinter gui
+# window = tk.Tk()
+# window.title("Boxman Fiddlejig")
+
+# optionsframe = tk.Frame(window)
+# optionsframe.pack(expand=False)
 
 ### TK variables to be used globally 
-edge_mode_var = tk.IntVar()
-def toggle_orchestrator_mode():
-    if edge_mode_var.get() == 1:
-        orchestrator.set_path_mode('border')
-    else:
-        orchestrator.set_path_mode('all')
+# edge_mode_var = tk.IntVar()
+# def toggle_orchestrator_mode():
+#     if edge_mode_var.get() == 1:
+#         orchestrator.set_path_mode('border')
+#     else:
+#         orchestrator.set_path_mode('all')
 
-def set_edgemode_checkbox(checked):
-    if checked == True:
-        edge_mode_var.set(1)
-        return
-    elif checked == False:
-        edge_mode_var.set(0)
-        return
-    else: raise Exception("Invalid input!")
+# def set_edgemode_checkbox(checked):
+#     if checked == True:
+#         edge_mode_var.set(1)
+#         return
+#     elif checked == False:
+#         edge_mode_var.set(0)
+#         return
+#     else: raise Exception("Invalid input!")
 
 # edge mode checkbutton
-edge_mode_check = tk.Checkbutton(optionsframe, variable=edge_mode_var, command=toggle_orchestrator_mode, text="Send only to edges", font=('Helvetica 12 bold'))
-edge_mode_check.pack(side=tk.LEFT)
+# edge_mode_check = tk.Checkbutton(optionsframe, variable=edge_mode_var, command=toggle_orchestrator_mode, text="Send only to edges", font=('Helvetica 12 bold'))
+# edge_mode_check.pack(side=tk.LEFT)
 
 
-# pixel width and height entry form
-pixelframe = tk.Frame(optionsframe)
-def validate_and_handle_pixelwidthentry(entry, action_type) -> bool:
-    result = enter_only_max_two_digits(entry, action_type)
-    if result:
-        print("Pixel width: ", entry)
-        pass # todo, something with the end
-    return result
-    
-def validate_and_handle_pixelheightentry(entry, action_type) -> bool:
-    result = enter_only_max_two_digits(entry, action_type)
-    if result:
-        print("Pixel width: ", entry)
-        pass # todo, something with the end
-    return result
-def enter_only_max_two_digits(entry, action_type) -> bool:
-    if action_type == '1' and not entry.isdigit():
-        return False
-    if action_type == '1' and float(entry) > 100:
-        return False
-    return True
-v_pixelwidthentry = (window.register(validate_and_handle_pixelwidthentry), '%P', '%d')
-v_pixelheightentry = (window.register(validate_and_handle_pixelheightentry), '%P', '%d')
+# # pixel width and height entry form
+# pixelframe = tk.Frame(optionsframe)
+# def validate_and_handle_pixelwidthentry(entry, action_type) -> bool:
+#     result = enter_only_max_two_digits(entry, action_type)
+#     if result:
+#         print("Pixel width: ", entry)
+#         pass # todo, something with the end
+#     return result
 
-pixelwidthlabel = tk.Label(pixelframe, text="Pixel Width", font=('Helvetica 12 bold'))
-pixelwidthlabel.grid(row=0, column=0)
-pixelwidthentry = tk.Entry(pixelframe, validate='key', validatecommand=v_pixelwidthentry)
-pixelwidthentry.grid(row=0, column=1)
-pixelheightlabel = tk.Label(pixelframe, text="Pixel Height", font=('Helvetica 12 bold'))
-pixelheightlabel.grid(row=1, column=0)
-pixelheightentry = tk.Entry(pixelframe, validate='key', validatecommand=v_pixelheightentry)
-pixelheightentry.grid(row=1, column=1)
-pixelframe.pack(side=tk.LEFT)
+# def validate_and_handle_pixelheightentry(entry, action_type) -> bool:
+#     result = enter_only_max_two_digits(entry, action_type)
+#     if result:
+#         print("Pixel width: ", entry)
+#         pass # todo, something with the end
+#     return result
+# def enter_only_max_two_digits(entry, action_type) -> bool:
+#     if action_type == '1' and not entry.isdigit():
+#         return False
+#     if action_type == '1' and float(entry) > 100:
+#         return False
+#     return True
+# v_pixelwidthentry = (window.register(validate_and_handle_pixelwidthentry), '%P', '%d')
+# v_pixelheightentry = (window.register(validate_and_handle_pixelheightentry), '%P', '%d')
 
-portframe = tk.Frame(optionsframe)
-com_port_options = find_serial_ports()
-com_port_selection = tk.StringVar()
-com_port_selection.set("-")
-com_port_dropdown = tk.OptionMenu(portframe, com_port_selection, *com_port_options)
-com_port_dropdown.pack(side=tk.BOTTOM)
-# com_port_options_label = tk.Label(portframe, text="PORT", font=('Helvetica 12 bold'))
-# com_port_options_label.pack(side=tk.TOP)
-def update_com_port_dropdown():
-    # com_port_selection.set('')
-    com_port_dropdown['menu'].delete(0, 'end')
-    new_choices = find_serial_ports()
-    for choice in new_choices:
-        com_port_dropdown['menu'].add_command(label=choice, command=tk._setit(com_port_selection, choice))
+# pixelwidthlabel = tk.Label(pixelframe, text="Pixel Width", font=('Helvetica 12 bold'))
+# pixelwidthlabel.grid(row=0, column=0)
+# pixelwidthentry = tk.Entry(pixelframe, validate='key', validatecommand=v_pixelwidthentry)
+# pixelwidthentry.grid(row=0, column=1)
+# pixelheightlabel = tk.Label(pixelframe, text="Pixel Height", font=('Helvetica 12 bold'))
+# pixelheightlabel.grid(row=1, column=0)
+# pixelheightentry = tk.Entry(pixelframe, validate='key', validatecommand=v_pixelheightentry)
+# pixelheightentry.grid(row=1, column=1)
+# pixelframe.pack(side=tk.LEFT)
 
-com_port_refresh_btn = tk.Button(portframe, text="Refresh Ports", font=('Helvetica 8 bold'), command=update_com_port_dropdown)
-com_port_refresh_btn.pack(side=tk.TOP)
-portframe.pack(side=tk.LEFT)
+# portframe = tk.Frame(optionsframe)
+# com_port_options = find_serial_ports()
+# com_port_selection = tk.StringVar()
+# com_port_selection.set("-")
+# com_port_dropdown = tk.OptionMenu(portframe, com_port_selection, *com_port_options)
+# com_port_dropdown.pack(side=tk.BOTTOM)
+# # com_port_options_label = tk.Label(portframe, text="PORT", font=('Helvetica 12 bold'))
+# # com_port_options_label.pack(side=tk.TOP)
+# def update_com_port_dropdown():
+#     # com_port_selection.set('')
+#     com_port_dropdown['menu'].delete(0, 'end')
+#     new_choices = find_serial_ports()
+#     for choice in new_choices:
+#         com_port_dropdown['menu'].add_command(label=choice, command=tk._setit(com_port_selection, choice))
 
-canvases = []  # we might not need to save these just yet
+# com_port_refresh_btn = tk.Button(portframe, text="Refresh Ports", font=('Helvetica 8 bold'), command=update_com_port_dropdown)
+# com_port_refresh_btn.pack(side=tk.TOP)
+# portframe.pack(side=tk.LEFT)
 
-grids = []
-monitor_active_buttons = []
-widths_input_fields = []
-heights_input_fields = []
+# canvases = []  # we might not need to save these just yet
 
-monitorframe = tk.Frame(window)
-for i, monitor_id in enumerate(monitor_ids):
-    frame = tk.Frame(monitorframe)
-    canvases.append(tk.Canvas(frame))
-    canvases[i].pack(expand=True, fill=tk.BOTH)
-    grids.append(CanvasGrid(canvases[i], mbps[i], orchestrator))
+# grids = []
+# monitor_active_buttons = []
+# widths_input_fields = []
+# heights_input_fields = []
 
-    c, r = orchestrator.get_monitor_grid_position_by_id(monitor_id)
-    frame.grid(row=r, column=c, sticky=tk.NSEW)
-    monitorframe.grid_columnconfigure(c, weight=1)
-    monitorframe.grid_rowconfigure(r, weight=1)
+# monitorframe = tk.Frame(window)
+# for i, monitor_id in enumerate(monitor_ids):
+#     frame = tk.Frame(monitorframe)
+#     canvases.append(tk.Canvas(frame))
+#     canvases[i].pack(expand=True, fill=tk.BOTH)
+#     grids.append(CanvasGrid(canvases[i], mbps[i], orchestrator))
 
-monitorframe.pack(expand=True, fill=tk.BOTH)
-# load the save file and set default values
+#     c, r = orchestrator.get_monitor_grid_position_by_id(monitor_id)
+#     frame.grid(row=r, column=c, sticky=tk.NSEW)
+#     monitorframe.grid_columnconfigure(c, weight=1)
+#     monitorframe.grid_rowconfigure(r, weight=1)
 
-# Set the size of the window
-window.geometry("700x350")
+# monitorframe.pack(expand=True, fill=tk.BOTH)
+# # load the save file and set default values
 
-# Define a function for quit the window
-def quit_window(icon, item):
-    global SOFTKILL_MODEL
-    SOFTKILL_MODEL = True
-    # for mbp in mbps: mbp.terminate_subprocess()
-    icon.stop()
-    window.destroy()
-    exit()
+# # Set the size of the window
+# window.geometry("700x350")
 
-# Define a function to show the window again
-def show_window(icon, item):
-   icon.stop()
-   window.after(0,window.deiconify())
+# # Define a function for quit the window
+# def quit_window(icon, item):
+#     global SOFTKILL_MODEL
+#     SOFTKILL_MODEL = True
+#     # for mbp in mbps: mbp.terminate_subprocess()
+#     icon.stop()
+#     window.destroy()
+#     exit()
 
-# Hide the window and show on the system taskbar
-def hide_window():
-   window.withdraw()
-   image=Image.open("think.ico")
-   menu=(
-    item('Quit', quit_window), 
-    item('Show', show_window, default=True),)
-   icon=pystray.Icon("name", image, "My System Tray Icon", menu)
-   icon.run()
+# # Define a function to show the window again
+# def show_window(icon, item):
+#    icon.stop()
+#    window.after(0,window.deiconify())
 
-window.protocol('WM_DELETE_WINDOW', hide_window)   
+# # Hide the window and show on the system taskbar
+# def hide_window():
+#    window.withdraw()
+#    image=Image.open("think.ico")
+#    menu=(
+#     item('Quit', quit_window), 
+#     item('Show', show_window, default=True),)
+#    icon=pystray.Icon("name", image, "My System Tray Icon", menu)
+#    icon.run()
+
+# window.protocol('WM_DELETE_WINDOW', hide_window)   
 
 plist = [x.device for x in list(serial.tools.list_ports.comports())]
 print(plist)
@@ -728,16 +888,20 @@ def ping_model():
         time.sleep(remaining_time)
 threading.Thread(target=ping_model).start()
 
+gui = GUI(orchestrator)
+
 last_refresh_time = time.time()
 while True:
     print("pong!")
     if (time.time() - last_refresh_time) * 1000 > GUI_POLLING_TIME_MS:
         last_refresh_time = time.time()
-        for grid in grids:
-            grid.update()
+        gui.update_grid()
+        # for grid in grids:
+        #     grid.update()
+    gui.update_tk()
+    # window.update_idletasks()
+    # window.update()
 
-    window.update_idletasks()
-    window.update()
     remaining_time = max(0, GUI_POLLING_TIME_MS/1000 - (time.time() - last_refresh_time))
 
     time.sleep(remaining_time)
