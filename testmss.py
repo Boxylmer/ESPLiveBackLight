@@ -1,6 +1,6 @@
 from PIL import Image
 import time
-
+import threading
 import mss
 import mss.tools
 import mss.windows
@@ -29,7 +29,7 @@ def time_for_all_screenshots_1():
     return sum(times) / len(times)
     
 
-get_master_screenshot().show()
+# get_master_screenshot().show()
 
 def get_individual_screenshot(monitor_id):
     complete_screengrab = sct.grab(sct.monitors[monitor_id])
@@ -109,9 +109,40 @@ def time_for_all_screenshots_4():
     return sum(times) / len(times)
 
 
+class ScreenshotAcquirer:
+    def __init__(self, monitor_id) -> None:
+        self.screenshot = None
+        self.monitor_id = monitor_id
 
-print("time for method 1: ", time_for_all_screenshots_1())
-print("time for method 2: ", time_for_all_screenshots_2())
-print("time for method 3: ", time_for_all_screenshots_3())
-print("time for method 4: ", time_for_all_screenshots_4())
+    def get_screenshot(self):
+        self.screenshot = get_individual_screenshot(self.monitor_id)
+    
+    def start(self):
+        threading.Thread(target=self.get_screenshot).start()
+        return self
 
+    def iscomplete(self): 
+        if self.screenshot == None: return False
+        else: return True
+
+# what if it's threaded?
+def time_for_all_screenshots_5():
+    times = []
+    for _ in range(50):
+        starttime = time.time()
+        sa1 = ScreenshotAcquirer(1).start()
+        sa2 = ScreenshotAcquirer(2).start()
+        sa3 = ScreenshotAcquirer(3).start()
+        sa4 = ScreenshotAcquirer(4).start()
+        while not(sa1.iscomplete() and sa2.iscomplete() and sa3.iscomplete() and sa4.iscomplete()):
+            pass
+
+        t = time.time() - starttime
+        times.append(t)
+    return sum(times) / len(times)
+
+# print("time for method 1: ", time_for_all_screenshots_1())
+# print("time for method 2: ", time_for_all_screenshots_2())
+# print("time for method 3: ", time_for_all_screenshots_3())
+# print("time for method 4: ", time_for_all_screenshots_4())
+print("time for method 4: ", time_for_all_screenshots_5())
