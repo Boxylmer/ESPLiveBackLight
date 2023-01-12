@@ -608,23 +608,24 @@ class SerialConnection:
         self.connection = None
 
     def connect(self, port):
+        print("Connecting to ", port)
         ports = self.find_serial_ports()
         if port is None: 
             print("Port was not provided")
             return
 
-        self.port = port  # todo need a keepalive 
+        self.port = port 
 
         if self.connection != None:
-            if self.isconnected: self.disconnect()
-        else:
-            if port in ports:
-                try:
-                    self.connection = Serial(port, 115200, timeout=0.0, parity=serial.PARITY_NONE)
-                except:
-                    self.connection = None
-                    print("Connecting to serial failed.")
-            else: print("Port doesn't exist.")
+            if self.isconnected(): self.disconnect()
+        
+        if port in ports:
+            try:
+                self.connection = Serial(port, 115200, timeout=0.0, parity=serial.PARITY_NONE)
+            except:
+                self.connection = None
+                print("Connecting to serial failed.")
+        else: print("Port doesn't exist.")
 
     def disconnect(self):
         try:
@@ -645,6 +646,11 @@ class SerialConnection:
             return True
         else:
             return False
+
+    def keepalive(self):
+        if self.port != None and not self.isconnected():
+            self.connect(self.port)
+
 
     @staticmethod
     def find_serial_ports():
@@ -691,6 +697,9 @@ class GUI:
             font=('Helvetica 12 bold')
         )
         self.edge_mode_check.pack(side=tk.LEFT)
+        self.set_edgemode_checkbox(self.settings.get_edgemode_checkbox())
+        self.toggle_orchestrator_mode()
+
 
         # pixel width and height entry form
         self.pixelframe = tk.Frame(self.optionsframe)
@@ -741,7 +750,7 @@ class GUI:
 
 
     def _callback_com_port_dropdown_selection_updated(self, var, index, mode):
-            print(self.com_port_selection.get())
+            print("new port selected: ", self.com_port_selection.get())
             self.settings.set_last_com_port(self.com_port_selection.get())
             self.ser.connect(self.com_port_selection.get())
 
@@ -811,11 +820,14 @@ class GUI:
     
     def toggle_orchestrator_mode(self):
         if self.edge_mode_var.get() == 1:
+            self.settings.set_edgemode_checkbox(True)
             self.orchestrator.set_path_mode('border')
         else:
+            self.settings.set_edgemode_checkbox(False)
             self.orchestrator.set_path_mode('all')
 
     def set_edgemode_checkbox(self, checked):
+        self.settings.set_edgemode_checkbox(checked)
         if checked == True:
             self.edge_mode_var.set(1)
             return
@@ -823,7 +835,6 @@ class GUI:
             self.edge_mode_var.set(0)
             return
         else: raise Exception("Invalid input!")
-
 
     def update_com_port_dropdown(self):
         # com_port_selection.set('')
@@ -843,10 +854,6 @@ class GUI:
 
 gui = GUI(orchestrator, settings, ser)
 
-# plist = SerialConnection.get_
-# print(plist)
-# ser = Serial(plist[0], 115200, timeout=0.0, parity=serial.PARITY_NONE)
-
 
 
 
@@ -860,15 +867,21 @@ def ping_model():
             exit()
         if (time.time() - last_refresh_time) * 1000 > REFRESH_TIME_MS:
             last_refresh_time = time.time()
+
+            ser.keepalive()
+
             try:
                 orchestrator.update()
+                stream = orchestrator.get_pixel_stream()
+                ser.write(stream)
             except:
                 print("WARNING: Model loop failed to ping.")
-            stream = orchestrator.get_pixel_stream()
             
-            ser.write(stream)
         # print("Total frame time: ", time.time() - start_time)
         remaining_time = max(0, REFRESH_TIME_MS/1000 - (time.time() - last_refresh_time))
+
+
+
         time.sleep(remaining_time)
 threading.Thread(target=ping_model).start()
 
