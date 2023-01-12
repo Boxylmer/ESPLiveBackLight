@@ -42,7 +42,7 @@ SOFTKILL_MODEL = False
 # img.show()
 
 WINDOW_BORDER_FRACTION = 0.01
-REFRESH_TIME_MS = 100
+REFRESH_TIME_MS = 250
 GUI_POLLING_TIME_MS = 100
 
 MICROCHIP_START_BYTE = 55 # U
@@ -372,10 +372,12 @@ class MonitorBorderPixels:
 
         self.refresh_screen_size()
         self.update_border_size(pixel_height, pixel_width)
+        self.PENDING_UPDATE = False
         self.update_img()
+
         self.update()
         self.kill_thread = False
-        self.subthread = threading.Thread(target=self.screencapture_subprocess).start()
+        threading.Thread(target=self.screencapture_subprocess).start()
 
     def refresh_screen_size(self):
 
@@ -436,20 +438,15 @@ class MonitorBorderPixels:
         scr = sct.grab(self.monitor)
         self.img = Image.frombuffer("RGB", scr.size, scr.bgra, "raw", "BGRX")
     
-    def screencapture_subprocess(self):
-        last_refresh_time = time.time()
-        while True:
-            if self.kill_thread: return
-            if (time.time() - last_refresh_time) * 1000 > REFRESH_TIME_MS:
-                last_refresh_time = time.time()
-                self.update_img()
-                print("Total screenshot time for monitor ", self.monitor_id, ": ", time.time() - last_refresh_time)
-            else:
-                remaining_time = max(0, REFRESH_TIME_MS/1000 - (time.time() - last_refresh_time))
-                time.sleep(remaining_time)
-
-    def terminate_subprocess(self):
-        self.kill_thread = True
+    def screencapture_subprocess(self):        
+        st = time.time()
+        self.update_img()
+        print("Total screenshot time for monitor ", self.monitor_id, ": ", time.time() - st)
+        self.pix_left = np.asarray(self.img.crop(self.LOCAL_LEFT).resize((1, self.pixel_height))).squeeze()
+        self.pix_right = np.asarray(self.img.crop(self.LOCAL_RIGHT).resize((1, self.pixel_height))).squeeze()
+        self.pix_top = np.asarray(self.img.crop(self.LOCAL_TOP).resize((self.pixel_width, 1))).squeeze()
+        self.pix_bottom = np.asarray(self.img.crop(self.LOCAL_BOTTOM).resize((self.pixel_width, 1))).squeeze()
+        self.PENDING_UPDATE = False
 
     def update_border_size(self, pixel_height, pixel_width):
         self.pixel_height = pixel_height
@@ -468,11 +465,13 @@ class MonitorBorderPixels:
 
     def update(self):
         start = time.time()
-        self.pix_left = np.asarray(self.img.crop(self.LOCAL_LEFT).resize((1, self.pixel_height))).squeeze()
-        self.pix_right = np.asarray(self.img.crop(self.LOCAL_RIGHT).resize((1, self.pixel_height))).squeeze()
-        self.pix_top = np.asarray(self.img.crop(self.LOCAL_TOP).resize((self.pixel_width, 1))).squeeze()
-        self.pix_bottom = np.asarray(self.img.crop(self.LOCAL_BOTTOM).resize((self.pixel_width, 1))).squeeze()
+
+        if not self.PENDING_UPDATE:
+            self.PENDING_UPDATE = True
+            threading.Thread(target=self.screencapture_subprocess).start()
         print("image update time: ", time.time() - start)
+
+
     def get_top(self): return self.pix_top
     def get_bottom(self): return self.pix_bottom
     def get_left(self): return self.pix_left
@@ -606,6 +605,7 @@ def validate_and_handle_pixelwidthentry(entry, action_type) -> bool:
         print("Pixel width: ", entry)
         pass # todo, something with the end
     return result
+    
 def validate_and_handle_pixelheightentry(entry, action_type) -> bool:
     result = enter_only_max_two_digits(entry, action_type)
     if result:
@@ -679,9 +679,10 @@ window.geometry("700x350")
 def quit_window(icon, item):
     global SOFTKILL_MODEL
     SOFTKILL_MODEL = True
-    for mbp in mbps: mbp.terminate_subprocess()
+    # for mbp in mbps: mbp.terminate_subprocess()
     icon.stop()
     window.destroy()
+    exit()
 
 # Define a function to show the window again
 def show_window(icon, item):
@@ -708,10 +709,11 @@ def ping_model():
     global SOFTKILL_MODEL
     last_refresh_time = time.time()
     while True:
+        print("ping!")
         start_time = time.time()
         if SOFTKILL_MODEL:
             SOFTKILL_MODEL = False
-            return
+            exit()
         if (time.time() - last_refresh_time) * 1000 > REFRESH_TIME_MS:
             last_refresh_time = time.time()
             try:
@@ -728,6 +730,7 @@ threading.Thread(target=ping_model).start()
 
 last_refresh_time = time.time()
 while True:
+    print("pong!")
     if (time.time() - last_refresh_time) * 1000 > GUI_POLLING_TIME_MS:
         last_refresh_time = time.time()
         for grid in grids:
@@ -738,3 +741,4 @@ while True:
     remaining_time = max(0, GUI_POLLING_TIME_MS/1000 - (time.time() - last_refresh_time))
 
     time.sleep(remaining_time)
+
