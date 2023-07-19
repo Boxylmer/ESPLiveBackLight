@@ -721,23 +721,25 @@ class GUI:
         self.optionsframe = tk.Frame(self.window)
         
         # -- options params frame
+        self.options_params_frame = tk.Frame(self.optionsframe)
+
+        self.ordering_frame = tk.Frame(self.options_params_frame)
         self.edge_mode_var = tk.IntVar()
         self.edge_mode_check = tk.Checkbutton(
-            self.optionsframe, 
+            self.ordering_frame, 
             variable=self.edge_mode_var, 
             command=self.toggle_orchestrator_mode, 
             text="Send only to edges", 
             font=('Helvetica 12 bold')
         )
-        self.edge_mode_check.pack(side=tk.LEFT)
+        self.edge_mode_check.pack(side=tk.TOP)
         self.set_edgemode_checkbox(self.settings.get_edgemode_checkbox())
         self.toggle_orchestrator_mode()
-
-        # -- options wireorder frame
-        # self.wire_order_frame = tk.Frame(self.Options)
+        self.ordering_frame.pack(side=tk.LEFT)
+        
 
         # pixel width and height entry form
-        self.pixelframe = tk.Frame(self.optionsframe)
+        self.pixelframe = tk.Frame(self.options_params_frame)
         
         self.v_pixelwidthentry = (self.window.register(self._callback_validate_and_handle_pixelwidthentry), '%P', '%d')  # todo remove parenthesis? 
         self.v_pixelheightentry = (self.window.register(self._callback_validate_and_handle_pixelheightentry), '%P', '%d')
@@ -759,7 +761,7 @@ class GUI:
         
         self.pixelframe.pack(side=tk.LEFT)
 
-        self.portframe = tk.Frame(self.optionsframe)
+        self.portframe = tk.Frame(self.options_params_frame)
         self.com_port_options = SerialConnection.find_serial_ports()  # todo refactor into an update button that works
         self.com_port_selection = tk.StringVar()
         self.com_port_selection.trace_variable("w", self._callback_com_port_dropdown_selection_updated)
@@ -774,7 +776,7 @@ class GUI:
         self.com_port_refresh_btn.pack(side=tk.TOP)
         self.portframe.pack(side=tk.LEFT)
 
-        self.enabled_monitors_frame = tk.Frame(self.optionsframe)
+        self.enabled_monitors_frame = tk.Frame(self.options_params_frame)
         self.monitor_enabled_vars = []
         self.monitor_enabled_checks = []
         enabled_ids = self.settings.get_enabled_monitor_ids()
@@ -795,8 +797,27 @@ class GUI:
             self.monitor_enabled_vars.append(var)
             self.monitor_enabled_checks.append(chk)
         self.enabled_monitors_frame.pack(side=tk.LEFT)
+
+        self.options_params_frame.pack(side=tk.TOP)
     
-        self.optionsframe.pack(expand=False)
+        # -- optionsframe -> wireorder frame
+        self.wire_order_frame = tk.Frame(self.optionsframe)
+       
+        self.use_custom_order_check = tk.Checkbutton(
+            self.wire_order_frame, 
+            variable=None,
+            command=None, 
+            text="Custom wiring order", 
+            font=('Helvetica 12 bold')
+        )
+        self.use_custom_order_check.pack(side=tk.LEFT)
+
+        self.wire_order_dragndrop = DragDropFrame.DragDropFrame(self.wire_order_frame, 6)
+        self.wire_order_dragndrop.pack(side=tk.RIGHT, fill=tk.X)
+        self.wire_order_frame.pack(side=tk.BOTTOM)
+
+
+        self.optionsframe.pack(expand=False, fill=tk.X)
         self.monitorframe.pack(expand=True, fill=tk.BOTH)
         # load the save file and set default values
 

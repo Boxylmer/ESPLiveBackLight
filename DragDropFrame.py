@@ -26,7 +26,8 @@ class DragDropItem(tk.Canvas):
         self._drag_data = None
         self.dragdropframe.order_updated()
 
-
+ITEMSIZE = 18
+BORDERWIDTH = 3
 
 class DragDropFrame(tk.Frame):
     def __init__(self, parent, item_count):
@@ -35,15 +36,15 @@ class DragDropFrame(tk.Frame):
         self.items = []  # this is always in the same order
         self.item_id_order = range(0, self.item_count) # todo let the user specify this manually later
 
-        self.canvas = tk.Canvas(self, width=400, height=300)
-        self.canvas.pack()
+        self.canvas = tk.Canvas(self, width=(ITEMSIZE + BORDERWIDTH) * (item_count + 1) + 2 * BORDERWIDTH, height=ITEMSIZE + BORDERWIDTH * 2)
+        self.canvas.pack(expand=True)
 
         self._create_items()
         self.update_locations()
 
     def _create_items(self):
         for i in self.item_id_order:
-            item = DragDropItem(self.canvas, item_id=i, dragdropframe=self, relief=tk.SOLID, borderwidth=3, width=18, height=18, bg="white")
+            item = DragDropItem(self.canvas, item_id=i, dragdropframe=self, relief=tk.SOLID, borderwidth=BORDERWIDTH, width=ITEMSIZE, height=ITEMSIZE, bg="white")
             self.items.append(item)
 
     def get_item_location(self, item):
