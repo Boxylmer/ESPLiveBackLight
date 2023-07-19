@@ -292,7 +292,7 @@ class MonitorOrchestrator:
 
     def _generate_monitor_total_path(self):
         complete_monitor_path = []
-        for id in monitor_ids:
+        for id in self.monitor_ids:
             complete_monitor_path.append(id)
             complete_monitor_path.append(id)
             complete_monitor_path.append(id)
@@ -689,6 +689,8 @@ class SerialConnection:
 ser = SerialConnection()
 ser.connect(settings.get_last_com_port())
 
+
+import DragDropFrame
 class GUI:
     def __init__(self, orchestrator, settings, ser) -> None:
         self.orchestrator = orchestrator
@@ -702,7 +704,7 @@ class GUI:
         self.canvases = []  # we might not need to save these just yet
         self.grids = []
 
-        # monitor frame
+        # - monitor frame
         self.monitorframe = tk.Frame(self.window)
         for i, monitor_id in enumerate(monitor_ids):
             frame = tk.Frame(self.monitorframe)
@@ -715,9 +717,10 @@ class GUI:
             self.monitorframe.grid_columnconfigure(c, weight=1)
             self.monitorframe.grid_rowconfigure(r, weight=1)
 
-        # options frame
+        # - options frame
         self.optionsframe = tk.Frame(self.window)
         
+        # -- options params frame
         self.edge_mode_var = tk.IntVar()
         self.edge_mode_check = tk.Checkbutton(
             self.optionsframe, 
@@ -730,6 +733,8 @@ class GUI:
         self.set_edgemode_checkbox(self.settings.get_edgemode_checkbox())
         self.toggle_orchestrator_mode()
 
+        # -- options wireorder frame
+        # self.wire_order_frame = tk.Frame(self.Options)
 
         # pixel width and height entry form
         self.pixelframe = tk.Frame(self.optionsframe)
