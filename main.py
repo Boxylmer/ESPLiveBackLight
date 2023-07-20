@@ -825,6 +825,8 @@ class GUI:
         self.window.geometry("700x350")
         self.window.protocol('WM_DELETE_WINDOW', self.hide_window)   
 
+    
+
     def _callback_com_port_dropdown_selection_updated(self, var, index, mode):
             print("new port selected: ", self.com_port_selection.get())
             self.settings.set_last_com_port(self.com_port_selection.get())
@@ -971,16 +973,21 @@ threading.Thread(target=ping_model).start()
 
 
 last_refresh_time = time.time()
+
+
 while True:
     if (time.time() - last_refresh_time) * 1000 > GUI_POLLING_TIME_MS:
         last_refresh_time = time.time()
+        
         try:
             gui.update_grid()
         except:
             print("Warning, grid couldn't update.")
     gui.update_tk()
 
-    remaining_time = max(0, GUI_POLLING_TIME_MS/1000 - (time.time() - last_refresh_time))
+    if gui.wire_order_dragndrop.needs_initialization():
+        gui.wire_order_dragndrop.initialize_locations()
 
+    remaining_time = max(0, GUI_POLLING_TIME_MS/1000 - (time.time() - last_refresh_time))
     time.sleep(remaining_time)
 

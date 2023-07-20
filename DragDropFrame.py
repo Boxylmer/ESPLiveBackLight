@@ -32,6 +32,7 @@ BORDERWIDTH = 3
 class DragDropFrame(tk.Frame):
     def __init__(self, parent, item_count):
         super().__init__(parent)
+        self.are_locations_initialized = False
         self.item_count = item_count
         self.items = []  # this is always in the same order
         self.item_id_order = range(0, self.item_count) # todo let the user specify this manually later
@@ -86,6 +87,13 @@ class DragDropFrame(tk.Frame):
             relative_x = i * spacing_x 
             relative_y = 0  
             self.set_item_location(self.items[item_id], relative_x, relative_y)
+
+    def initialize_locations(self):
+        self.update_locations()
+        self.are_locations_initialized = True
+    
+    def needs_initialization(self): 
+        return not self.are_locations_initialized
 
 
 if __name__ == "__main__":
