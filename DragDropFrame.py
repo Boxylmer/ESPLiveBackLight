@@ -94,7 +94,7 @@ class DragDropFrame(tk.Frame):
     
     def needs_initialization(self): 
         return not self.are_locations_initialized
-
+    
 
 if __name__ == "__main__":
     root = tk.Tk()

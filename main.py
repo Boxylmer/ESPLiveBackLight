@@ -11,6 +11,7 @@
 
 
 import threading
+from enum import Enum
 from PIL import Image
 import numpy as np
 import pystray
@@ -38,6 +39,12 @@ MICROCHIP_START_BYTE = 55 # U
 MICROCHIP_STOP_BYTE = 10  # /n
 
 
+class PATH_ORDERS(Enum):
+    ALL = 1
+    EDGE = 2
+    CUSTOM = 3
+
+
 def remove_info_tokens(arr):
     """Remove all tokens from the bytearray that would otherwise have signal meaning, such as the sequence terminator token."""
     for i in range(2, len(arr) - 1):
@@ -62,7 +69,7 @@ def bottom_right_corner(id):
 
 class Settings:
     PATH = "settings.json"
-    DEFAULTJSON = '{"edgemode": true, "pixel_width": 5, "pixel_height": 5, "last_com": null}'
+    DEFAULTJSON = '{"pathorder": 1, "pixel_width": 5, "pixel_height": 5, "last_com": null}'
     DEFAULT_DATA = json.loads(DEFAULTJSON)
     DEFAULT_DATA["enabled_monitor_ids"] = []
 
@@ -79,8 +86,8 @@ class Settings:
             json.dump(self.data, json_file)
 
     # getters
-    def get_edgemode_checkbox(self):
-        return self.data["edgemode"]
+    def get_path_order_mode(self):
+        return PATH_ORDERS(self.data["pathorder"])
 
     def get_pixel_width(self):
         return self.data["pixel_width"]
@@ -95,8 +102,8 @@ class Settings:
         return self.data["enabled_monitor_ids"]
 
     # setters
-    def set_edgemode_checkbox(self, is_in_edgemode):
-        self.data["edgemode"] = is_in_edgemode
+    def set_path_order_mode(self, mode):
+        self.data["pathorder"] = mode.value
         self.updatefile()
 
     def set_pixel_width(self, width):
@@ -132,7 +139,7 @@ class MonitorOrchestrator:
         self.monitor_id_to_grid_position = self._find_monitor_grid_positions()
         self.grid_position_to_monitor_id = {value: key for key, value in self.monitor_id_to_grid_position.items()} # this only works for dicts with guaranteed unique values
         
-        self.path_mode = 'all' # or 'border'
+        self.path_mode = PATH_ORDERS.ALL # or 'border' or 'custom'
 
         # border info
         self.border_monitor_path, \
@@ -335,13 +342,13 @@ class MonitorOrchestrator:
         return self.monitor_id_to_grid_position[id]
 
     def get_order_of_edge(self, monitor_id, side):
-        if self.path_mode == 'border':
+        if self.path_mode == PATH_ORDERS.EDGE:
             key = (monitor_id, side)
             if key in self.id_and_side_to_border_order_dict:
                 return self.id_and_side_to_border_order_dict[key]
             else:
                 return None
-        elif self.path_mode == 'all':
+        elif self.path_mode == PATH_ORDERS.ALL:
             key = (monitor_id, side)
             if key in self.id_and_side_to_complete_order_dict:
                 return self.id_and_side_to_complete_order_dict[key]
@@ -351,17 +358,17 @@ class MonitorOrchestrator:
             raise Exception("Invalid mode")
 
     def get_id_and_edge_from_order(self, order):
-        if self.path_mode == 'border':
+        if self.path_mode == PATH_ORDERS.EDGE:
             return self.border_order_to_id_and_side_dict[order]
-        elif self.path_mode == 'all':
+        elif self.path_mode == PATH_ORDERS.ALL:
             return self.complete_order_to_id_and_side_dict[order]
         else:
             raise Exception("Invalid mode")
 
     def get_num_edges(self): 
-        if self.path_mode == 'border':
+        if self.path_mode == PATH_ORDERS.EDGE:
             return len(self.border_order_to_id_and_side_dict)
-        elif self.path_mode == 'all':
+        elif self.path_mode == PATH_ORDERS.ALL:
             return len(self.monitor_ids) * 4
 
     def get_pixel_row(self, id, edge):
@@ -377,9 +384,9 @@ class MonitorOrchestrator:
     def get_pixel_stream(self):
         data = bytearray([MICROCHIP_START_BYTE])
         
-        if self.path_mode == 'border':
+        if self.path_mode == PATH_ORDERS.EDGE:
             id_and_side_lookup = self.border_order_to_id_and_side_dict
-        elif self.path_mode == 'all':
+        elif self.path_mode == PATH_ORDERS.ALL:
             id_and_side_lookup = self.complete_order_to_id_and_side_dict
         else: raise Exception("Path mode was not valid")
         
@@ -704,7 +711,8 @@ class GUI:
         self.canvases = []  # we might not need to save these just yet
         self.grids = []
 
-        # - monitor frame
+
+        # monitor frame
         self.monitorframe = tk.Frame(self.window)
         for i, monitor_id in enumerate(monitor_ids):
             frame = tk.Frame(self.monitorframe)
@@ -716,34 +724,38 @@ class GUI:
             frame.grid(row=r, column=c, sticky=tk.NSEW)
             self.monitorframe.grid_columnconfigure(c, weight=1)
             self.monitorframe.grid_rowconfigure(r, weight=1)
+        # 
 
-        # - options frame
+
+
+        # options frame
         self.optionsframe = tk.Frame(self.window)
         
-        # -- options params frame
+        ## options params frame
         self.options_params_frame = tk.Frame(self.optionsframe)
 
+        ### ordering frame
         self.ordering_frame = tk.Frame(self.options_params_frame)
-        self.edge_mode_var = tk.IntVar()
-        self.edge_mode_check = tk.Checkbutton(
-            self.ordering_frame, 
-            variable=self.edge_mode_var, 
-            command=self.toggle_orchestrator_mode, 
-            text="Send only to edges", 
-            font=('Helvetica 12 bold')
-        )
-        self.edge_mode_check.pack(side=tk.TOP)
-        self.set_edgemode_checkbox(self.settings.get_edgemode_checkbox())
-        self.toggle_orchestrator_mode()
+
+        self.radio_option_order_var = tk.IntVar()
+        self.radio_option_order_var.set(self.settings.get_path_order_mode().value)
+        self.radio_option_order_custom = tk.Radiobutton(self.ordering_frame, text="Custom ordering", font=('Helvetica 12 bold'), variable=self.radio_option_order_var, value=PATH_ORDERS.CUSTOM.value, command=self.ordering_radio_changed)
+        self.radio_option_order_edges = tk.Radiobutton(self.ordering_frame, text="Auto all edges", font=('Helvetica 12 bold'), variable=self.radio_option_order_var, value=PATH_ORDERS.EDGE.value, command=self.ordering_radio_changed)
+        self.radio_option_order_all = tk.Radiobutton(self.ordering_frame, text="Auto all borders", font=('Helvetica 12 bold'), variable=self.radio_option_order_var, value=PATH_ORDERS.ALL.value, command=self.ordering_radio_changed)
+
+        self.radio_option_order_custom.pack(side=tk.BOTTOM, anchor=tk.W)
+        self.radio_option_order_edges.pack(side=tk.BOTTOM, anchor=tk.W)
+        self.radio_option_order_all.pack(side=tk.BOTTOM, anchor=tk.W)
+        ### 
+
         self.ordering_frame.pack(side=tk.LEFT)
         
 
-        # pixel width and height entry form
+        ### pixel width and height entry form
         self.pixelframe = tk.Frame(self.options_params_frame)
         
-        self.v_pixelwidthentry = (self.window.register(self._callback_validate_and_handle_pixelwidthentry), '%P', '%d')  # todo remove parenthesis? 
+        self.v_pixelwidthentry = (self.window.register(self._callback_validate_and_handle_pixelwidthentry), '%P', '%d') 
         self.v_pixelheightentry = (self.window.register(self._callback_validate_and_handle_pixelheightentry), '%P', '%d')
-
 
         self.pixelwidthlabel = tk.Label(self.pixelframe, text="Pixel Width", font=('Helvetica 12 bold'))
         self.pixelwidthlabel.grid(row=0, column=0)
@@ -758,9 +770,11 @@ class GUI:
         self.pixelheightentryvar.set(settings.get_pixel_height())
         self.pixelheightentry = tk.Entry(self.pixelframe, validate='key', validatecommand=self.v_pixelheightentry, textvariable=self.pixelheightentryvar)
         self.pixelheightentry.grid(row=1, column=1)
-        
+        ### 
+
         self.pixelframe.pack(side=tk.LEFT)
 
+        ### port selection frame
         self.portframe = tk.Frame(self.options_params_frame)
         self.com_port_options = SerialConnection.find_serial_ports()  # todo refactor into an update button that works
         self.com_port_selection = tk.StringVar()
@@ -769,13 +783,14 @@ class GUI:
         self.com_port_selection.set(self.settings.get_last_com_port())
         self.com_port_dropdown = tk.OptionMenu(self.portframe, self.com_port_selection, *self.com_port_options)
         self.com_port_dropdown.pack(side=tk.BOTTOM)
-        # com_port_options_label = tk.Label(portframe, text="PORT", font=('Helvetica 12 bold'))
-        # com_port_options_label.pack(side=tk.TOP)
         
         self.com_port_refresh_btn = tk.Button(self.portframe, text="Refresh Ports", font=('Helvetica 8 bold'), command=self.update_com_port_dropdown)
         self.com_port_refresh_btn.pack(side=tk.TOP)
+        ### 
+
         self.portframe.pack(side=tk.LEFT)
 
+        ### enabled monitors checkboxes frame
         self.enabled_monitors_frame = tk.Frame(self.options_params_frame)
         self.monitor_enabled_vars = []
         self.monitor_enabled_checks = []
@@ -797,23 +812,16 @@ class GUI:
             self.monitor_enabled_vars.append(var)
             self.monitor_enabled_checks.append(chk)
         self.enabled_monitors_frame.pack(side=tk.LEFT)
-
+        ### 
+        
         self.options_params_frame.pack(side=tk.TOP)
     
-        # -- optionsframe -> wireorder frame
+        ### wire order frame
         self.wire_order_frame = tk.Frame(self.optionsframe)
-       
-        self.use_custom_order_check = tk.Checkbutton(
-            self.wire_order_frame, 
-            variable=None,
-            command=None, 
-            text="Custom wiring order", 
-            font=('Helvetica 12 bold')
-        )
-        self.use_custom_order_check.pack(side=tk.LEFT)
-
         self.wire_order_dragndrop = DragDropFrame.DragDropFrame(self.wire_order_frame, 6)
         self.wire_order_dragndrop.pack(side=tk.RIGHT, fill=tk.X)
+        ### 
+
         self.wire_order_frame.pack(side=tk.BOTTOM)
 
 
@@ -825,7 +833,7 @@ class GUI:
         self.window.geometry("700x350")
         self.window.protocol('WM_DELETE_WINDOW', self.hide_window)   
 
-    
+    # def _create_monitor_frame(self, )
 
     def _callback_com_port_dropdown_selection_updated(self, var, index, mode):
             print("new port selected: ", self.com_port_selection.get())
@@ -904,24 +912,6 @@ class GUI:
             item('Show', self.show_window, default=True),)
         self.icon=pystray.Icon("name", image, "My System Tray Icon", menu)
         self.icon.run()
-    
-    def toggle_orchestrator_mode(self):
-        if self.edge_mode_var.get() == 1:
-            self.settings.set_edgemode_checkbox(True)
-            self.orchestrator.set_path_mode('border')
-        else:
-            self.settings.set_edgemode_checkbox(False)
-            self.orchestrator.set_path_mode('all')
-
-    def set_edgemode_checkbox(self, checked):
-        self.settings.set_edgemode_checkbox(checked)
-        if checked == True:
-            self.edge_mode_var.set(1)
-            return
-        elif checked == False:
-            self.edge_mode_var.set(0)
-            return
-        else: raise Exception("Invalid input!")
 
     def update_com_port_dropdown(self):
         # com_port_selection.set('')
@@ -930,7 +920,20 @@ class GUI:
         for choice in new_choices:
             self.com_port_dropdown['menu'].add_command(label=choice, command=tk._setit(self.com_port_selection, choice))
 
-
+    def ordering_radio_changed(self):
+        selected_option = PATH_ORDERS(self.radio_option_order_var.get())
+        self.settings.set_path_order_mode(selected_option)
+        self.orchestrator.set_path_mode(selected_option)
+        self.update_dragndrop_frame()
+        print("Selected option:", selected_option)
+        
+    def update_dragndrop_frame(self):
+        selected_option = PATH_ORDERS(self.radio_option_order_var.get())
+        if selected_option == PATH_ORDERS.CUSTOM:
+            self.wire_order_dragndrop.enable()
+        else: 
+            self.wire_order_dragndrop.disable()
+  
     def update_tk(self):
         self.window.update_idletasks()
         self.window.update()
@@ -987,6 +990,7 @@ while True:
 
     if gui.wire_order_dragndrop.needs_initialization():
         gui.wire_order_dragndrop.initialize_locations()
+        gui.update_dragndrop_frame()
 
     remaining_time = max(0, GUI_POLLING_TIME_MS/1000 - (time.time() - last_refresh_time))
     time.sleep(remaining_time)
