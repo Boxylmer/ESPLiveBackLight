@@ -29,6 +29,8 @@ import mss.tools
 import mss.windows
 mss.windows.CAPTUREBLT = 0
 sct = mss.mss()
+
+
 SOFTKILL_MODEL = False
 
 WINDOW_BORDER_FRACTION = 0.07
@@ -55,6 +57,8 @@ def remove_info_tokens(arr):
 def find_monitor_ids():
     return [*range(1, len(sct.monitors))]
     # return [0]
+MONITOR_IDS = find_monitor_ids()
+N_BORDERS = len(MONITOR_IDS) * 4
 
 def top_left_corner(id):
     return sct.monitors[id]["left"], sct.monitors[id]["top"]
@@ -72,6 +76,8 @@ class Settings:
     DEFAULTJSON = '{"pathorder": 1, "pixel_width": 5, "pixel_height": 5, "last_com": null}'
     DEFAULT_DATA = json.loads(DEFAULTJSON)
     DEFAULT_DATA["enabled_monitor_ids"] = []
+    DEFAULT_DATA["custom_path_order"] = [i for i in range(N_BORDERS)]
+    DEFAULT_DATA["custom_path_directions"] = [1 for _ in range(N_BORDERS)]
 
     def __init__(self) -> None:
         if os.path.exists(Settings.PATH):
@@ -89,6 +95,12 @@ class Settings:
     def get_path_order_mode(self):
         return PATH_ORDERS(self.data["pathorder"])
 
+    def get_custom_path_order(self):
+        return self.data["custom_path_order"]
+    
+    def get_custom_path_directions(self):
+        return self.data["custom_path_directions"]
+    
     def get_pixel_width(self):
         return self.data["pixel_width"]
     
@@ -104,6 +116,14 @@ class Settings:
     # setters
     def set_path_order_mode(self, mode):
         self.data["pathorder"] = mode.value
+        self.updatefile()
+
+    def set_custom_path_order(self, order):
+        self.data["custom_path_order"] = order
+        self.updatefile()
+
+    def set_custom_path_directions(self, directions):
+        self.data["custom_path_directions"] = directions
         self.updatefile()
 
     def set_pixel_width(self, width):
@@ -327,7 +347,7 @@ class MonitorOrchestrator:
         self.path_mode = mode
 
     def set_enabled_monitors(self, enabled_ids):
-        for pid in monitor_ids: self.monitor_id_to_border_object[pid].disable()
+        for pid in MONITOR_IDS: self.monitor_id_to_border_object[pid].disable()
         for pid in enabled_ids:self.monitor_id_to_border_object[pid].enable()
 
     def update(self):
@@ -426,7 +446,7 @@ class MonitorBorderPixels:
         self.enabled = True
 
         self.refresh_screen_size()
-        self._update_border_dimensions(pixel_height, pixel_width)
+        self._update_border_dimensions(pixel_width, pixel_height)
         self.PENDING_UPDATE = False
         self.update_img()
 
@@ -501,7 +521,7 @@ class MonitorBorderPixels:
         self.PENDING_UPDATE = False
         print("Total screenshot time for monitor ", self.monitor_id, ": ", time.time() - st)
 
-    def _update_border_dimensions(self, pixel_height, pixel_width):
+    def _update_border_dimensions(self, pixel_width, pixel_height):
         self.pixel_height = pixel_height
         self.pixel_width = pixel_width
 
@@ -622,8 +642,8 @@ class CanvasGrid:
         self.canvas.itemconfigure(self.right_text, text=self._get_side_text('r'))
             
 mbps = []
-monitor_ids = find_monitor_ids()
-for i, monitor_id in enumerate(monitor_ids):
+
+for i, monitor_id in enumerate(MONITOR_IDS):
     mbps.append(MonitorBorderPixels(settings.get_pixel_width(), settings.get_pixel_height(), monitor_id))
 orchestrator = MonitorOrchestrator(mbps)
 orchestrator.set_enabled_monitors(settings.get_enabled_monitor_ids())
@@ -714,7 +734,7 @@ class GUI:
 
         # monitor frame
         self.monitorframe = tk.Frame(self.window)
-        for i, monitor_id in enumerate(monitor_ids):
+        for i, monitor_id in enumerate(MONITOR_IDS):
             frame = tk.Frame(self.monitorframe)
             self.canvases.append(tk.Canvas(frame))
             self.canvases[i].pack(expand=True, fill=tk.BOTH)
@@ -725,8 +745,6 @@ class GUI:
             self.monitorframe.grid_columnconfigure(c, weight=1)
             self.monitorframe.grid_rowconfigure(r, weight=1)
         # 
-
-
 
         # options frame
         self.optionsframe = tk.Frame(self.window)
@@ -818,8 +836,11 @@ class GUI:
     
         ### wire order frame
         self.wire_order_frame = tk.Frame(self.optionsframe)
-        self.wire_order_dragndrop = DragDropFrame.DragDropFrame(self.wire_order_frame, 6)
+        self.wire_order_dragndrop = DragDropFrame.DragDropFrame(self.wire_order_frame, N_BORDERS, self._callback_custom_order_or_direction_changed)
         self.wire_order_dragndrop.pack(side=tk.RIGHT, fill=tk.X)
+        order = self.settings.get_custom_path_order()
+        self.wire_order_dragndrop.set_item_order(order)
+    
         ### 
 
         self.wire_order_frame.pack(side=tk.BOTTOM)
@@ -873,6 +894,10 @@ class GUI:
         self.settings.set_enabled_monitor_ids(enabled_ids)
         self.orchestrator.set_enabled_monitors(enabled_ids)
 
+    def _callback_custom_order_or_direction_changed(self):
+        print("_callback_custom_order_or_direction_changed reached!")
+        order = self.wire_order_dragndrop.get_item_order()
+        self.settings.set_custom_path_order(order)
 
     @staticmethod
     def _enter_only_max_two_digits(entry, action_type) -> bool:
@@ -884,7 +909,7 @@ class GUI:
 
     def _the_pixel_dimensions_changed(self):
         self.orchestrator.update_border_dimensions(
-            settings.get_pixel_width(), 
+            settings.get_pixel_width(),
             settings.get_pixel_height()
         )
         for grid in self.grids: grid.initialize_objects()
@@ -924,15 +949,9 @@ class GUI:
         selected_option = PATH_ORDERS(self.radio_option_order_var.get())
         self.settings.set_path_order_mode(selected_option)
         self.orchestrator.set_path_mode(selected_option)
-        self.update_dragndrop_frame()
         print("Selected option:", selected_option)
         
-    def update_dragndrop_frame(self):
-        selected_option = PATH_ORDERS(self.radio_option_order_var.get())
-        if selected_option == PATH_ORDERS.CUSTOM:
-            self.wire_order_dragndrop.enable()
-        else: 
-            self.wire_order_dragndrop.disable()
+
   
     def update_tk(self):
         self.window.update_idletasks()
@@ -990,7 +1009,6 @@ while True:
 
     if gui.wire_order_dragndrop.needs_initialization():
         gui.wire_order_dragndrop.initialize_locations()
-        gui.update_dragndrop_frame()
 
     remaining_time = max(0, GUI_POLLING_TIME_MS/1000 - (time.time() - last_refresh_time))
     time.sleep(remaining_time)

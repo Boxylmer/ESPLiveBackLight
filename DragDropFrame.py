@@ -1,4 +1,7 @@
 import tkinter as tk
+def _empty_callback(*args, **kwargs):
+        pass
+
 
 class DragDropItem(tk.Canvas):
     def __init__(self, parent, dragdropframe, item_id, **kwargs):
@@ -26,18 +29,19 @@ class DragDropItem(tk.Canvas):
         self._drag_data = None
         self.dragdropframe.order_updated()
 
-ITEMSIZE = 18
-BORDERWIDTH = 3
+ITEMSIZE = 25
+BORDERWIDTH = 2
 
 class DragDropFrame(tk.Frame):
-    def __init__(self, parent, item_count):
+    def __init__(self, parent, item_count, callback_fn=_empty_callback):
         super().__init__(parent)
         self.are_locations_initialized = False
         self.item_count = item_count
+        self.callback_fn = callback_fn
         self.items = []  # this is always in the same order
         self.item_id_order = range(0, self.item_count) # todo let the user specify this manually later
 
-        self.canvas = tk.Canvas(self, width=(ITEMSIZE + BORDERWIDTH) * (item_count + 1) + 2 * BORDERWIDTH, height=ITEMSIZE + BORDERWIDTH * 2)
+        self.canvas = tk.Canvas(self, width=(ITEMSIZE + 2 * BORDERWIDTH) * (item_count + 1) , height=ITEMSIZE + BORDERWIDTH * 2)
         self.canvas.pack(expand=True)
 
         self._create_items()
@@ -68,6 +72,7 @@ class DragDropFrame(tk.Frame):
         self.compute_item_order()
         print(self.item_id_order)
         self.update_locations()
+        self.callback_fn()
 
     def compute_item_order(self):
         sorted_items = sorted(self.items, key=lambda item: item.winfo_x())
@@ -76,9 +81,15 @@ class DragDropFrame(tk.Frame):
     def get_item_order(self):
         return self.item_id_order
 
-    def setitem_order(self, order):
-        assert(len(self.item_id_order) == len(order))
-        self.item_id_order = order
+    def set_item_order(self, order):
+        if len(self.item_id_order) == len(order):
+            self.item_id_order = order
+        else:
+            temp_order = [val for val in order if val < len(self.item_id_order)]
+            while len(temp_order) < len(self.item_id_order):
+                missing_val = max(temp_order) + 1 if temp_order else 0
+                temp_order.append(missing_val)
+            self.item_id_order = temp_order
         self.update_locations()
 
     def update_locations(self):
@@ -109,7 +120,7 @@ if __name__ == "__main__":
     right_half = tk.Frame(root, bg="blue")
     right_half.place(relx=0.5, rely=0, relwidth=0.5, relheight=1)
     
-    drag_drop_frame = DragDropFrame(root, item_count=10)
+    drag_drop_frame = DragDropFrame(root, item_count=10, )
     drag_drop_frame.pack( expand=True, side=tk.RIGHT)
 
 
