@@ -13,23 +13,23 @@ class DragDropItem(tk.Canvas):
         self.bind("<ButtonRelease-1>", self.release_drag)
 
         # track item directions! 
-        self.arrow_direction = '→'
+        self.arrow_direction = '↻'
 
 
         w = int(self.cget('width'))
         h = int(self.cget('height'))
         bwidth = int(self.cget('borderwidth'))
-        self.create_text(w/2 + 2 + bwidth, h/2.5 + 2 + bwidth, text=str(item_id), font='Helvetica 16 bold', anchor="center")
-        self.arrow_widget = self.create_text(w/2 + 2 + bwidth, h * 0.9, text=self.arrow_direction, font='Helvetica 16 bold', anchor="center")
+        self.create_text(w/3.1 + 2 + bwidth, h/3.5 + 2 + bwidth, text=str(item_id), font='Helvetica 16 bold', anchor="center")
+        self.arrow_widget = self.create_text(w * 0.7 + 2 + bwidth, h * 0.85, text=self.arrow_direction, font='Calibri 18 bold', anchor="center")
 
         self.actually_dragged = False # will use this later to check whether the user clicked + dragged + released or just clicked + released
 
 
     def toggle_arrow(self):
-        if self.arrow_direction == '←':
-            self.arrow_direction = '→'
+        if self.arrow_direction == '↺':
+            self.arrow_direction = '↻'
         else:
-            self.arrow_direction = '←'
+            self.arrow_direction = '↺'
         self.itemconfig(self.arrow_widget, text=self.arrow_direction)
 
     def start_drag(self, event):
@@ -49,18 +49,18 @@ class DragDropItem(tk.Canvas):
         self.dragdropframe.order_updated()
 
     def get_direction(self):
-        if self.arrow_direction == '→': return 1
+        if self.arrow_direction == '↻': return 1
         else: return -1
 
     def set_direction(self, direction):
-        if self.arrow_direction == '→' and direction == 1:
+        if self.arrow_direction == '↻' and direction == 1:
             return
-        elif self.arrow_direction == '←' and direction == -1:
+        elif self.arrow_direction == '↺' and direction == -1:
             return
         else:
             self.toggle_arrow()
 
-ITEMSIZE = 25
+ITEMSIZE = 35
 BORDERWIDTH = 2
 
 class DragDropFrame(tk.Frame):
@@ -163,7 +163,7 @@ if __name__ == "__main__":
     right_half = tk.Frame(root, bg="blue")
     right_half.place(relx=0.5, rely=0, relwidth=0.5, relheight=1)
     
-    drag_drop_frame = DragDropFrame(root, item_count=10, )
+    drag_drop_frame = DragDropFrame(root, item_count=15, )
     drag_drop_frame.pack( expand=True, side=tk.RIGHT)
 
     drag_drop_frame.items[2].set_direction(-1)
@@ -172,7 +172,6 @@ if __name__ == "__main__":
 
     drag_drop_frame.items[1].set_direction(1)
 
-    drag_drop_frame.set_item_directions([1, -1, 1, -1, 1, -1, 1, -1, 1, -1])
 
 
     root.mainloop()

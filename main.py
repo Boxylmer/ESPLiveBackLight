@@ -153,6 +153,7 @@ class MonitorOrchestrator:
     def __init__(self, monitor_borders):
         self.monitor_borders = monitor_borders
         self.monitor_ids = [b.monitor_id for b in monitor_borders]
+        print("MID", self.monitor_ids)
         self.monitor_id_to_border_object = {b.monitor_id: b for b in monitor_borders}
 
         self.first_monitor_id = self.monitor_ids[self._first_monitor_idx()]
@@ -162,18 +163,19 @@ class MonitorOrchestrator:
         self.path_mode = PATH_ORDERS.ALL # or 'border' or 'custom'
 
         # border info
-        self.border_monitor_path, \
-        self.border_edge_path, \
+        _, \
+        _, \
         self.id_and_side_to_border_order_dict, \
         self.border_order_to_id_and_side_dict = \
         self._generate_monitor_side_path(self.first_monitor_id, first_edge='d')
-        print(self.border_monitor_path, self.border_edge_path, self.id_and_side_to_border_order_dict, self.border_order_to_id_and_side_dict)
 
-        self.complete_monitor_path, \
-        self.complete_edge_path, \
+        self.monitor_id_path, \
+        _, \
         self.id_and_side_to_complete_order_dict, \
         self.complete_order_to_id_and_side_dict = self._generate_monitor_total_path()
 
+        print(self.id_and_side_to_complete_order_dict)
+        print(self.complete_order_to_id_and_side_dict)
         # examples are for border
         # monitor path                          -> [2, 2, 3, 3, 4, 4, 1, 1]  
         #   i.e., given an index, what monitor is this on?
@@ -181,7 +183,11 @@ class MonitorOrchestrator:
         #   i.e., given an index, what direction is this on? 
         # id and side to complete order dict    -> {(2, 'd'): 0, (2, 'l'): 1, (3, 'l'): 2, (3, 'u'): 3, (4, 'u'): 4, (4, 'r'): 5, (1, 'r'): 6, (1, 'd'): 7}
         # comnplete order to id and side dict   -> {0: (2, 'd'), 1: (2, 'l'), 2: (3, 'l'), 3: (3, 'u'), 4: (4, 'u'), 5: (4, 'r'), 6: (1, 'r'), 7: (1, 'd')}
+        
+        self._generate_monitor_custom_path()
 
+        print(self.id_and_side_to_custom_order_dict)
+        print(self.custom_order_to_id_and_side_dict)
 
     def _top_left_corner(self, border):
         return top_left_corner(border.monitor_id)
@@ -219,7 +225,7 @@ class MonitorOrchestrator:
         naive_ids_to_position = {naive_first_id: naive_first_position}
 
         dirs = [(0, 1), (1, 1), (1, 0), (1, -1), (0, -1), (-1, -1), (-1, 0), (-1, 1)]
-        print("all positions:")
+     
         for pid in self.monitor_ids:
             print("   ", pid, ": ", top_left_corner(pid))
         while len(remaining_position_ids) > 0:
@@ -242,8 +248,6 @@ class MonitorOrchestrator:
             if not found_one_during_loop:
                 raise(Exception("One of the montiors was out of tolerance to be fit into a cardinal grid system!"))
 
-
-        print("naive: ", naive_ids_to_position)
         # find lowest values and normalize
         lowestx=0
         lowesty=0
@@ -255,7 +259,6 @@ class MonitorOrchestrator:
         for pid in naive_ids_to_position.keys():
             # shift everything up and flip x and y
             ids_to_position[pid] = naive_ids_to_position[pid][0] - lowestx,(naive_ids_to_position[pid][1] - lowesty) 
-        print(ids_to_position)
         # raise(Exception("---"))
         return ids_to_position
 
@@ -296,7 +299,6 @@ class MonitorOrchestrator:
         if direction == 'clockwise':
             candidate_edge_position = self._rotate_edge_symbol(current_edge_position, direction='clockwise')
             for _ in range(MonitorOrchestrator.MONITOR_LIMIT):
-                print(grid_position, candidate_edge_position)
                 if self._has_neighbor_in_direction(grid_position, candidate_edge_position):
                     grid_position = self._get_position_in_direction(grid_position, candidate_edge_position)
                     candidate_edge_position = self._rotate_edge_symbol(candidate_edge_position, direction='counterclockwise')
@@ -315,15 +317,14 @@ class MonitorOrchestrator:
             complete_monitor_path.append(id)
 
         complete_edge_path = ('d', 'l', 'u', 'r') * len(self.monitor_ids)
-        print
         id_and_side_to_complete_order_dict = {}
         complete_order_to_id_and_side_dict = {}
         assert len(complete_monitor_path) ==  len(complete_edge_path)
         for idx, _ in enumerate(complete_monitor_path):
+      
             id_and_side = (complete_monitor_path[idx], complete_edge_path[idx])
             id_and_side_to_complete_order_dict[id_and_side] = idx
             complete_order_to_id_and_side_dict[idx] = id_and_side
-
         return complete_monitor_path, complete_edge_path, id_and_side_to_complete_order_dict, complete_order_to_id_and_side_dict
 
     def _generate_monitor_side_path(self, first_monitor_id, first_edge='d'):
@@ -346,17 +347,37 @@ class MonitorOrchestrator:
             order_to_id_and_side_dict[idx] = id_and_side
         return monitor_id_path, edge_path, id_and_side_to_order_dict, order_to_id_and_side_dict
 
-    # def _generate_monitor_custom_path(self)":
+    def _generate_monitor_custom_path(self, order=None, directions=None):
+        if order is None:
+            self.id_and_side_to_custom_order_dict = self.id_and_side_to_complete_order_dict
+            self.custom_order_to_id_and_side_dict = self.complete_order_to_id_and_side_dict
+            self.custom_order_edge_directions = [1] * len(self.monitor_id_path)
+            return
         
+        assert ((order is not None) and (directions is not None))
         
-    #     id_and_side_to_order_dict = {}
-    #     order_to_id_and_side_dict = {}
-    #     assert len(monitor_id_path) ==  len(edge_path)
-    #     for idx, _ in enumerate(monitor_id_path):
-    #         id_and_side = (monitor_id_path[idx], edge_path[idx])
-    #         id_and_side_to_order_dict[id_and_side] = idx
-    #         order_to_id_and_side_dict[idx] = id_and_side
-    #     return monitor_id_path, edge_path, id_and_side_to_order_dict, order_to_id_and_side_dict
+        id_and_side_to_order_dict = {}
+        order_to_id_and_side_dict = {}
+        idx_to_direction = []
+        # order     -> [5, 4, 2, 6, 1, 0, 3]
+        # directions-> [1, 1,-1, 1,-1,-1, 1] (corresponds to the default, we need to convert it to the order)
+        # default   -> [0, 1, 2, 3, 4, 5, 6]
+
+        for idx, _ in enumerate(self.monitor_id_path):
+            mapped_custom_id = order[idx] # -> 5
+            id_and_side = (self.complete_order_to_id_and_side_dict[mapped_custom_id]) # -> Something like (2, 'l)
+            id_and_side_to_order_dict[id_and_side] = idx  # now 1 -> (2, 'l')
+            order_to_id_and_side_dict[idx] = id_and_side  # and (2, 'l') -> 1
+            idx_to_direction.append(directions[mapped_custom_id])
+    
+        self.id_and_side_to_custom_order_dict = id_and_side_to_order_dict
+        self.custom_order_to_id_and_side_dict = order_to_id_and_side_dict
+        self.custom_order_edge_directions = idx_to_direction 
+
+        print(self.id_and_side_to_custom_order_dict)
+        print(self.custom_order_to_id_and_side_dict)
+        print(self.custom_order_edge_directions)
+        return
     
     #setters and commands
 
@@ -396,11 +417,16 @@ class MonitorOrchestrator:
             else:
                 return None
         elif self.path_mode == PATH_ORDERS.CUSTOM:
-            raise Exception("not implemented")
+            # untested
+            key = (monitor_id, side)
+            if key in self.id_and_side_to_complete_order_dict:
+                return self.id_and_side_to_complete_order_dict[key]
+            else:
+                return None
         else:
             raise Exception("Invalid mode")
 
-    def get_id_and_edge_from_order(self, order):
+    def get_id_and_edge_from_order(self, order): # todo remove / comment
         if self.path_mode == PATH_ORDERS.EDGE:
             return self.border_order_to_id_and_side_dict[order]
         elif self.path_mode == PATH_ORDERS.ALL:
@@ -416,7 +442,7 @@ class MonitorOrchestrator:
         elif self.path_mode == PATH_ORDERS.ALL:
             return len(self.monitor_ids) * 4
         elif self.path_mode == PATH_ORDERS.CUSTOM:
-            raise Exception("not implemented")
+            return len(self.monitor_ids) * 4
         else:
             raise Exception("Invalid PATH_ORDER")
 
@@ -438,24 +464,29 @@ class MonitorOrchestrator:
         elif self.path_mode == PATH_ORDERS.ALL:
             id_and_side_lookup = self.complete_order_to_id_and_side_dict
         elif self.path_mode == PATH_ORDERS.CUSTOM:
-            raise Exception("not implemented")
+            id_and_side_lookup = self.custom_order_to_id_and_side_dict
         else: raise Exception("Path mode was not valid")
         
-        
+        print(id_and_side_lookup)
         
         for i in range(self.get_num_edges()):
             pid, side = id_and_side_lookup[i]
             row = self.get_pixel_row(pid, side)  # row will be empty if the monitor is not enabled
 
-            if side == 'u':
+
+            if self.path_mode == PATH_ORDERS.EDGE or self.path_mode == PATH_ORDERS.ALL:
+                if side == 'u':
+                    rgbrow = row
+                elif side == 'd':
+                    rgbrow = np.flip(row)
+                elif side == 'l':
+                    rgbrow = np.flip(row)
+                elif side == 'r':
+                    rgbrow = row
+            else:
                 rgbrow = row
-            elif side == 'd':
-                rgbrow = np.flip(row)
-            elif side == 'l':
-                rgbrow = np.flip(row)
-            elif side == 'r':
-                rgbrow = row
-            
+                
+                # logic here for states, todo. doing it here allows for easy "skips" later if we want to disable some rows
             for colorval in rgbrow:
                 data.append(round(colorval[2]))
                 data.append(round(colorval[1]))
@@ -639,7 +670,7 @@ class CanvasGrid:
         result = self.orchestrator.get_order_of_edge(self.mbpv.monitor_id, side)
         if not self.mbpv.enabled: result = "-"
         elif result == None: result = "-"
-        elif result == 0: result = "start here!"
+        # elif result == 0: result = "start here!"
         else: result = str(result)
         
         if side == 'l': result = ' ' + result
@@ -1004,7 +1035,6 @@ class GUI:
             grid.update()
 
 gui = GUI(orchestrator, settings, ser)
-
 
 
 
