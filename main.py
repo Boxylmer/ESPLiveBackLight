@@ -184,7 +184,7 @@ class MonitorOrchestrator:
         # id and side to complete order dict    -> {(2, 'd'): 0, (2, 'l'): 1, (3, 'l'): 2, (3, 'u'): 3, (4, 'u'): 4, (4, 'r'): 5, (1, 'r'): 6, (1, 'd'): 7}
         # comnplete order to id and side dict   -> {0: (2, 'd'), 1: (2, 'l'), 2: (3, 'l'), 3: (3, 'u'), 4: (4, 'u'), 5: (4, 'r'), 6: (1, 'r'), 7: (1, 'd')}
         
-        self._generate_monitor_custom_path()
+        self.generate_monitor_custom_path()
 
         print(self.id_and_side_to_custom_order_dict)
         print(self.custom_order_to_id_and_side_dict)
@@ -347,7 +347,7 @@ class MonitorOrchestrator:
             order_to_id_and_side_dict[idx] = id_and_side
         return monitor_id_path, edge_path, id_and_side_to_order_dict, order_to_id_and_side_dict
 
-    def _generate_monitor_custom_path(self, order=None, directions=None):
+    def generate_monitor_custom_path(self, order=None, directions=None):
         if order is None:
             self.id_and_side_to_custom_order_dict = self.id_and_side_to_complete_order_dict
             self.custom_order_to_id_and_side_dict = self.complete_order_to_id_and_side_dict
@@ -473,8 +473,16 @@ class MonitorOrchestrator:
             pid, side = id_and_side_lookup[i]
             row = self.get_pixel_row(pid, side)  # row will be empty if the monitor is not enabled
 
-
-            if self.path_mode == PATH_ORDERS.EDGE or self.path_mode == PATH_ORDERS.ALL:
+            if (self.path_mode == PATH_ORDERS.CUSTOM) and (self.custom_order_edge_directions[i] == -1):
+                if side == 'u':
+                    rgbrow = np.flip(row)
+                elif side == 'd':
+                    rgbrow = row
+                elif side == 'l':
+                    rgbrow = row
+                elif side == 'r':
+                    rgbrow = np.flip(row)
+            else:
                 if side == 'u':
                     rgbrow = row
                 elif side == 'd':
@@ -483,8 +491,6 @@ class MonitorOrchestrator:
                     rgbrow = np.flip(row)
                 elif side == 'r':
                     rgbrow = row
-            else:
-                rgbrow = row
                 
                 # logic here for states, todo. doing it here allows for easy "skips" later if we want to disable some rows
             for colorval in rgbrow:
@@ -586,7 +592,7 @@ class MonitorBorderPixels:
         self.pix_top = np.asarray(self.img.crop(self.LOCAL_TOP).resize((self.pixel_width, 1))).squeeze()
         self.pix_bottom = np.asarray(self.img.crop(self.LOCAL_BOTTOM).resize((self.pixel_width, 1))).squeeze()
         self.PENDING_UPDATE = False
-        print("Total screenshot time for monitor ", self.monitor_id, ": ", time.time() - st)
+        # print("Total screenshot time for monitor ", self.monitor_id, ": ", time.time() - st)
 
     def _update_border_dimensions(self, pixel_width, pixel_height):
         self.pixel_height = pixel_height
@@ -912,6 +918,7 @@ class GUI:
         directions = self.settings.get_custom_path_directions()
         self.wire_order_dragndrop.set_item_order(order)
         self.wire_order_dragndrop.set_item_directions(directions)
+        self.orchestrator.generate_monitor_custom_path(order, directions)
         ### 
 
         self.wire_order_frame.pack(side=tk.BOTTOM)
@@ -971,6 +978,7 @@ class GUI:
         directions = self.wire_order_dragndrop.get_item_directions()
         self.settings.set_custom_path_order(order)
         self.settings.set_custom_path_directions(directions)
+        self.orchestrator.generate_monitor_custom_path(order, directions)
 
     @staticmethod
     def _enter_only_max_two_digits(entry, action_type) -> bool:
