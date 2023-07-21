@@ -11,23 +11,54 @@ class DragDropItem(tk.Canvas):
         self.bind("<Button-1>", self.start_drag)
         self.bind("<B1-Motion>", self.drag)
         self.bind("<ButtonRelease-1>", self.release_drag)
+
+        # track item directions! 
+        self.arrow_direction = '→'
+
+
         w = int(self.cget('width'))
         h = int(self.cget('height'))
         bwidth = int(self.cget('borderwidth'))
-        self.create_text(w/2 + 2 + bwidth, h/2 + 2 + bwidth, text=str(item_id), font='Helvetica 16 bold', anchor="center")
+        self.create_text(w/2 + 2 + bwidth, h/2.5 + 2 + bwidth, text=str(item_id), font='Helvetica 16 bold', anchor="center")
+        self.arrow_widget = self.create_text(w/2 + 2 + bwidth, h * 0.9, text=self.arrow_direction, font='Helvetica 16 bold', anchor="center")
 
+        self.actually_dragged = False # will use this later to check whether the user clicked + dragged + released or just clicked + released
+
+
+    def toggle_arrow(self):
+        if self.arrow_direction == '←':
+            self.arrow_direction = '→'
+        else:
+            self.arrow_direction = '←'
+        self.itemconfig(self.arrow_widget, text=self.arrow_direction)
 
     def start_drag(self, event):
         self._drag_data = {'x': event.x, 'y': event.y}
+        self.actually_dragged = False
 
     def drag(self, event):
         delta_x = event.x - self._drag_data['x']
         delta_y = event.y - self._drag_data['y']
         self.place(x=self.winfo_x() + delta_x, y=self.winfo_y() + delta_y)
+        self.actually_dragged = True
 
     def release_drag(self, event):
         self._drag_data = None
+        if not self.actually_dragged:
+            self.toggle_arrow()
         self.dragdropframe.order_updated()
+
+    def get_direction(self):
+        if self.arrow_direction == '→': return 1
+        else: return -1
+
+    def set_direction(self, direction):
+        if self.arrow_direction == '→' and direction == 1:
+            return
+        elif self.arrow_direction == '←' and direction == -1:
+            return
+        else:
+            self.toggle_arrow()
 
 ITEMSIZE = 25
 BORDERWIDTH = 2
@@ -92,6 +123,18 @@ class DragDropFrame(tk.Frame):
             self.item_id_order = temp_order
         self.update_locations()
 
+    def get_item_directions(self):
+        return [item.get_direction() for item in self.items]
+    
+    def set_item_directions(self, directions):         
+        for i, direction in enumerate(directions):  # will ignore all directions after len(self.items) has been passed. 
+            self.items[i].set_direction(direction)
+
+        if  len(directions) < len(self.items):
+            # Pad the latter items
+            for i in range(len(directions), len(self.items)):
+                self.items[i].set_direction(1)  # You can replace '1' with the default direction for padding.
+
     def update_locations(self):
         spacing_x = 1 / (self.item_count)
         for i, item_id in enumerate(self.item_id_order):
@@ -122,6 +165,14 @@ if __name__ == "__main__":
     
     drag_drop_frame = DragDropFrame(root, item_count=10, )
     drag_drop_frame.pack( expand=True, side=tk.RIGHT)
+
+    drag_drop_frame.items[2].set_direction(-1)
+    assert(drag_drop_frame.items[2].get_direction() == -1)
+    drag_drop_frame.items[2].set_direction(1)
+
+    drag_drop_frame.items[1].set_direction(1)
+
+    drag_drop_frame.set_item_directions([1, -1, 1, -1, 1, -1, 1, -1, 1, -1])
 
 
     root.mainloop()

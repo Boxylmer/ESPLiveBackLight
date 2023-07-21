@@ -174,6 +174,15 @@ class MonitorOrchestrator:
         self.id_and_side_to_complete_order_dict, \
         self.complete_order_to_id_and_side_dict = self._generate_monitor_total_path()
 
+        # examples are for border
+        # monitor path                          -> [2, 2, 3, 3, 4, 4, 1, 1]  
+        #   i.e., given an index, what monitor is this on?
+        # edge path                             -> ['d', 'l', 'l', 'u', 'u', 'r', 'r', 'd']
+        #   i.e., given an index, what direction is this on? 
+        # id and side to complete order dict    -> {(2, 'd'): 0, (2, 'l'): 1, (3, 'l'): 2, (3, 'u'): 3, (4, 'u'): 4, (4, 'r'): 5, (1, 'r'): 6, (1, 'd'): 7}
+        # comnplete order to id and side dict   -> {0: (2, 'd'), 1: (2, 'l'), 2: (3, 'l'), 3: (3, 'u'), 4: (4, 'u'), 5: (4, 'r'), 6: (1, 'r'), 7: (1, 'd')}
+
+
     def _top_left_corner(self, border):
         return top_left_corner(border.monitor_id)
 
@@ -297,26 +306,6 @@ class MonitorOrchestrator:
         elif direction == 'counterclockwise':
             raise Exception("the dev is lazy and didn't write this because it didn't end up being necessary")
 
-    def _generate_monitor_side_path(self, first_monitor_id, first_edge='d'):
-        monitor_id_path = [first_monitor_id]
-        edge_path = [first_edge]
-        for _ in range(MonitorOrchestrator.MONITOR_LIMIT * 4):
-            next_monitor_path, next_edge_path = self._traverse_grid_border(monitor_id_path[-1], edge_path[-1])
-            if (monitor_id_path[0] == next_monitor_path and edge_path[0] == next_edge_path):
-                break
-            else:
-                monitor_id_path.append(next_monitor_path)
-                edge_path.append(next_edge_path)
-
-        id_and_side_to_order_dict = {}
-        order_to_id_and_side_dict = {}
-        assert len(monitor_id_path) ==  len(edge_path)
-        for idx, _ in enumerate(monitor_id_path):
-            id_and_side = (monitor_id_path[idx], edge_path[idx])
-            id_and_side_to_order_dict[id_and_side] = idx
-            order_to_id_and_side_dict[idx] = id_and_side
-        return monitor_id_path, edge_path, id_and_side_to_order_dict, order_to_id_and_side_dict
-
     def _generate_monitor_total_path(self):
         complete_monitor_path = []
         for id in self.monitor_ids:
@@ -337,6 +326,38 @@ class MonitorOrchestrator:
 
         return complete_monitor_path, complete_edge_path, id_and_side_to_complete_order_dict, complete_order_to_id_and_side_dict
 
+    def _generate_monitor_side_path(self, first_monitor_id, first_edge='d'):
+        monitor_id_path = [first_monitor_id]
+        edge_path = [first_edge]
+        for _ in range(MonitorOrchestrator.MONITOR_LIMIT * 4):
+            next_monitor_path, next_edge_path = self._traverse_grid_border(monitor_id_path[-1], edge_path[-1])
+            if (monitor_id_path[0] == next_monitor_path and edge_path[0] == next_edge_path):
+                break
+            else:
+                monitor_id_path.append(next_monitor_path)
+                edge_path.append(next_edge_path)
+
+        id_and_side_to_order_dict = {}
+        order_to_id_and_side_dict = {}
+        assert len(monitor_id_path) ==  len(edge_path)
+        for idx, _ in enumerate(monitor_id_path):
+            id_and_side = (monitor_id_path[idx], edge_path[idx])
+            id_and_side_to_order_dict[id_and_side] = idx
+            order_to_id_and_side_dict[idx] = id_and_side
+        return monitor_id_path, edge_path, id_and_side_to_order_dict, order_to_id_and_side_dict
+
+    # def _generate_monitor_custom_path(self)":
+        
+        
+    #     id_and_side_to_order_dict = {}
+    #     order_to_id_and_side_dict = {}
+    #     assert len(monitor_id_path) ==  len(edge_path)
+    #     for idx, _ in enumerate(monitor_id_path):
+    #         id_and_side = (monitor_id_path[idx], edge_path[idx])
+    #         id_and_side_to_order_dict[id_and_side] = idx
+    #         order_to_id_and_side_dict[idx] = id_and_side
+    #     return monitor_id_path, edge_path, id_and_side_to_order_dict, order_to_id_and_side_dict
+    
     #setters and commands
 
     def update_border_dimensions(self, pixel_width, pixel_height):
@@ -348,7 +369,7 @@ class MonitorOrchestrator:
 
     def set_enabled_monitors(self, enabled_ids):
         for pid in MONITOR_IDS: self.monitor_id_to_border_object[pid].disable()
-        for pid in enabled_ids:self.monitor_id_to_border_object[pid].enable()
+        for pid in enabled_ids: self.monitor_id_to_border_object[pid].enable()
 
     def update(self):
         start = time.time()
@@ -374,6 +395,8 @@ class MonitorOrchestrator:
                 return self.id_and_side_to_complete_order_dict[key]
             else:
                 return None
+        elif self.path_mode == PATH_ORDERS.CUSTOM:
+            raise Exception("not implemented")
         else:
             raise Exception("Invalid mode")
 
@@ -382,6 +405,8 @@ class MonitorOrchestrator:
             return self.border_order_to_id_and_side_dict[order]
         elif self.path_mode == PATH_ORDERS.ALL:
             return self.complete_order_to_id_and_side_dict[order]
+        elif self.path_mode == PATH_ORDERS.CUSTOM:
+            raise Exception("not implemented")
         else:
             raise Exception("Invalid mode")
 
@@ -390,6 +415,10 @@ class MonitorOrchestrator:
             return len(self.border_order_to_id_and_side_dict)
         elif self.path_mode == PATH_ORDERS.ALL:
             return len(self.monitor_ids) * 4
+        elif self.path_mode == PATH_ORDERS.CUSTOM:
+            raise Exception("not implemented")
+        else:
+            raise Exception("Invalid PATH_ORDER")
 
     def get_pixel_row(self, id, edge):
         if edge == 'u':
@@ -408,11 +437,16 @@ class MonitorOrchestrator:
             id_and_side_lookup = self.border_order_to_id_and_side_dict
         elif self.path_mode == PATH_ORDERS.ALL:
             id_and_side_lookup = self.complete_order_to_id_and_side_dict
+        elif self.path_mode == PATH_ORDERS.CUSTOM:
+            raise Exception("not implemented")
         else: raise Exception("Path mode was not valid")
+        
+        
         
         for i in range(self.get_num_edges()):
             pid, side = id_and_side_lookup[i]
-            row = self.get_pixel_row(pid, side)
+            row = self.get_pixel_row(pid, side)  # row will be empty if the monitor is not enabled
+
             if side == 'u':
                 rgbrow = row
             elif side == 'd':
@@ -426,6 +460,8 @@ class MonitorOrchestrator:
                 data.append(round(colorval[2]))
                 data.append(round(colorval[1]))
                 data.append(round(colorval[0]))
+
+        
         remove_info_tokens(data)
         data.append(MICROCHIP_STOP_BYTE)
         return data
@@ -758,12 +794,13 @@ class GUI:
         self.radio_option_order_var = tk.IntVar()
         self.radio_option_order_var.set(self.settings.get_path_order_mode().value)
         self.radio_option_order_custom = tk.Radiobutton(self.ordering_frame, text="Custom ordering", font=('Helvetica 12 bold'), variable=self.radio_option_order_var, value=PATH_ORDERS.CUSTOM.value, command=self.ordering_radio_changed)
-        self.radio_option_order_edges = tk.Radiobutton(self.ordering_frame, text="Auto all edges", font=('Helvetica 12 bold'), variable=self.radio_option_order_var, value=PATH_ORDERS.EDGE.value, command=self.ordering_radio_changed)
-        self.radio_option_order_all = tk.Radiobutton(self.ordering_frame, text="Auto all borders", font=('Helvetica 12 bold'), variable=self.radio_option_order_var, value=PATH_ORDERS.ALL.value, command=self.ordering_radio_changed)
+        self.radio_option_order_edges = tk.Radiobutton(self.ordering_frame, text="Auto outer edges", font=('Helvetica 12 bold'), variable=self.radio_option_order_var, value=PATH_ORDERS.EDGE.value, command=self.ordering_radio_changed)
+        self.radio_option_order_all = tk.Radiobutton(self.ordering_frame, text="Auto all edges", font=('Helvetica 12 bold'), variable=self.radio_option_order_var, value=PATH_ORDERS.ALL.value, command=self.ordering_radio_changed)
 
         self.radio_option_order_custom.pack(side=tk.BOTTOM, anchor=tk.W)
         self.radio_option_order_edges.pack(side=tk.BOTTOM, anchor=tk.W)
         self.radio_option_order_all.pack(side=tk.BOTTOM, anchor=tk.W)
+        self.ordering_radio_changed() # called to initialize the current state in settings
         ### 
 
         self.ordering_frame.pack(side=tk.LEFT)
@@ -838,9 +875,12 @@ class GUI:
         self.wire_order_frame = tk.Frame(self.optionsframe)
         self.wire_order_dragndrop = DragDropFrame.DragDropFrame(self.wire_order_frame, N_BORDERS, self._callback_custom_order_or_direction_changed)
         self.wire_order_dragndrop.pack(side=tk.RIGHT, fill=tk.X)
+
+            # initialize the state of the dragndrop tab
         order = self.settings.get_custom_path_order()
+        directions = self.settings.get_custom_path_directions()
         self.wire_order_dragndrop.set_item_order(order)
-    
+        self.wire_order_dragndrop.set_item_directions(directions)
         ### 
 
         self.wire_order_frame.pack(side=tk.BOTTOM)
@@ -897,7 +937,9 @@ class GUI:
     def _callback_custom_order_or_direction_changed(self):
         print("_callback_custom_order_or_direction_changed reached!")
         order = self.wire_order_dragndrop.get_item_order()
+        directions = self.wire_order_dragndrop.get_item_directions()
         self.settings.set_custom_path_order(order)
+        self.settings.set_custom_path_directions(directions)
 
     @staticmethod
     def _enter_only_max_two_digits(entry, action_type) -> bool:
@@ -986,8 +1028,6 @@ def ping_model():
                 print("WARNING: Model loop failed to ping.")
             
         remaining_time = max(0, REFRESH_TIME_MS/1000 - (time.time() - last_refresh_time))
-
-
 
         time.sleep(remaining_time)
 threading.Thread(target=ping_model).start()
