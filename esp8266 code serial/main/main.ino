@@ -6,7 +6,7 @@
 #define STOP_BYTE 255
 #define START_BYTE 55
 
-#define STATE_FILL_BUFFER 1
+#define STATE_FILL_BUFFER 1 
 #define STATE_IDLE 2
 
 #define RED 0

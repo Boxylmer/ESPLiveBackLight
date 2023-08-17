@@ -1,4 +1,6 @@
 
+
+# todo needs serious reworking for the "RED BUG"
 # import serial
 from serial import Serial
 import serial.tools.list_ports
