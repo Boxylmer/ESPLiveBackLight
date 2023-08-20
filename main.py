@@ -49,7 +49,7 @@ class PATH_ORDERS(Enum):
 
 def remove_info_tokens(arr):
     """Remove all tokens from the bytearray that would otherwise have signal meaning, such as the sequence terminator token."""
-    for i in range(2, len(arr) - 1):
+    for i in range(1, len(arr) - 1):
         if arr[i] == MICROCHIP_STOP_BYTE:
             arr[i] = MICROCHIP_STOP_BYTE - 1 # clip to 254 and 0
         # we won't need to deal with the start byte as the server won't be watching for it during reading
@@ -467,7 +467,7 @@ class MonitorOrchestrator:
             id_and_side_lookup = self.custom_order_to_id_and_side_dict
         else: raise Exception("Path mode was not valid")
         
-        print(id_and_side_lookup)
+        # print(id_and_side_lookup)
         
         for i in range(self.get_num_edges()):
             pid, side = id_and_side_lookup[i]
@@ -497,8 +497,7 @@ class MonitorOrchestrator:
                 data.append(round(colorval[2]))
                 data.append(round(colorval[1]))
                 data.append(round(colorval[0]))
-
-        
+   
         remove_info_tokens(data)
         data.append(MICROCHIP_STOP_BYTE)
         return data
@@ -757,8 +756,9 @@ class SerialConnection:
         except:
             print("Could not close serial port.")
         self.serial = None
-
+    
     def write(self, data):
+
         if self.connection != None and self.isconnected():
             try: 
                 self.connection.write(data)
