@@ -800,7 +800,9 @@ class GUI:
         # make the structure
         self.window = tk.Tk()
         self.window.title("Boxman Fiddlejig")
-
+        self.window.iconbitmap('think.ico')
+        # icon = tk.PhotoImage(file="think.ico")
+        # self.window.iconphoto(True, icon)
         self.canvases = []  # we might not need to save these just yet
         self.grids = []
 
@@ -1012,11 +1014,12 @@ class GUI:
     # Hide the window and show on the system taskbar
     def hide_window(self):
         self.window.withdraw()
-        image=Image.open("think.ico")
+        icon_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "think.ico")
+        image=Image.open(icon_path)
         menu=(
             item('Quit', self.quit_window), 
             item('Show', self.show_window, default=True),)
-        self.icon=pystray.Icon("name", image, "My System Tray Icon", menu)
+        self.icon=pystray.Icon("name", image, "I control your LEDs", menu)
         self.icon.run()
 
     def update_com_port_dropdown(self):
@@ -1072,22 +1075,26 @@ threading.Thread(target=ping_model).start()
 
 
 
-last_refresh_time = time.time()
 
+def start():
+    last_refresh_time = time.time()
+    while True:
+        if (time.time() - last_refresh_time) * 1000 > GUI_POLLING_TIME_MS:
+            last_refresh_time = time.time()
+            
+            try:
+                gui.update_grid()
+            except:
+                print("Warning, grid couldn't update.")
+        gui.update_tk()
 
-while True:
-    if (time.time() - last_refresh_time) * 1000 > GUI_POLLING_TIME_MS:
-        last_refresh_time = time.time()
-        
-        try:
-            gui.update_grid()
-        except:
-            print("Warning, grid couldn't update.")
-    gui.update_tk()
+        if gui.wire_order_dragndrop.needs_initialization():
+            gui.wire_order_dragndrop.initialize_locations()
 
-    if gui.wire_order_dragndrop.needs_initialization():
-        gui.wire_order_dragndrop.initialize_locations()
+        remaining_time = max(0, GUI_POLLING_TIME_MS/1000 - (time.time() - last_refresh_time))
+        time.sleep(remaining_time)
 
-    remaining_time = max(0, GUI_POLLING_TIME_MS/1000 - (time.time() - last_refresh_time))
-    time.sleep(remaining_time)
+# start()
+if __name__ == "__main__":
+    start()
 
