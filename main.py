@@ -1,12 +1,6 @@
 # known working on python version 3.8.0
 
 # todo
-# pixel row / height input
-# com port search and dropdown
-# settings file
-# go back over the serial protocol on the microchip
-
-# disable certain monitors / make logic skip those monitors
 # specify refresh rate
 
 
@@ -45,7 +39,6 @@ class PATH_ORDERS(Enum):
     ALL = 1
     EDGE = 2
     CUSTOM = 3
-
 
 def remove_info_tokens(arr):
     """Remove all tokens from the bytearray that would otherwise have signal meaning, such as the sequence terminator token."""
