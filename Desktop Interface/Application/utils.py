@@ -1,5 +1,5 @@
-from constants import sct
-from constants import MICROCHIP_STOP_BYTE
+from Application.constants import sct
+from Application.constants import MICROCHIP_STOP_BYTE
 
 
 def find_monitor_ids():

@@ -6,10 +6,13 @@
 import threading
 import time
 
-from constants import sct, REFRESH_TIME_MS, GUI_POLLING_TIME_MS
-from utils import find_monitor_ids
+# import Application
+# from Application import constants, utils, Settings, MonitorOrchestrator, MonitorBorderPixels
+from Application.constants import sct, REFRESH_TIME_MS, GUI_POLLING_TIME_MS
+from Application.utils import find_monitor_ids
 
-from Settings import Settings
+from Application.Settings import Settings
+
 settings = Settings()
 
 from MonitorOrchestrator import MonitorOrchestrator
