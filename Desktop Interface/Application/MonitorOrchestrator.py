@@ -1,9 +1,9 @@
 import time
 import numpy as np 
 
-from constants import sct, PATH_ORDERS, MICROCHIP_START_BYTE, MICROCHIP_STOP_BYTE
-from utils import top_left_corner, bottom_left_corner, top_right_corner, bottom_right_corner
-from utils import find_monitor_ids, remove_info_tokens
+from .constants import sct, PATH_ORDERS, MICROCHIP_START_BYTE, MICROCHIP_STOP_BYTE
+from .utils import top_left_corner, bottom_left_corner, top_right_corner, bottom_right_corner
+from .utils import find_monitor_ids, remove_info_tokens
 
 class MonitorOrchestrator:
     PX_TOLERANCE = 100 # n-pixels for monitor borders to be considered touching

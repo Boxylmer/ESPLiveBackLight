@@ -2,7 +2,7 @@ import time
 import threading
 import numpy as np 
 from PIL import Image
-from constants import sct, WINDOW_BORDER_FRACTION
+from .constants import sct, WINDOW_BORDER_FRACTION
 
 class MonitorBorderPixels:
     def __init__(self, pixel_width, pixel_height, monitor_id):

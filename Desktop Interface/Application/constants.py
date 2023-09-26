@@ -1,9 +1,11 @@
 from enum import Enum
+import os
 import mss
 import mss.tools
 import mss.windows
 mss.windows.CAPTUREBLT = 0
 sct = mss.mss()
+
 
 
 SOFTKILL_MODEL = False
@@ -19,3 +21,7 @@ GUI_POLLING_TIME_MS = 100
 
 MICROCHIP_START_BYTE = 55 # U
 MICROCHIP_STOP_BYTE = 10  # /n
+
+
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+ICON_PATH = os.path.join(BASE_DIR, "resources", "think.ico")

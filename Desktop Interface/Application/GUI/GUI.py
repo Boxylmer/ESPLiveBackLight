@@ -5,9 +5,10 @@ import os
 from PIL import Image
 
 from ..utils import find_monitor_ids, get_n_borders
-from ..constants import PATH_ORDERS
-from DragDropFrame import DragDropFrame
-from CanvasGrid import CanvasGrid
+from .. import constants
+from ..constants import PATH_ORDERS, ICON_PATH
+from .DragDropFrame import DragDropFrame
+from .CanvasGrid import CanvasGrid
 
 class GUI:
     def __init__(self, orchestrator, settings, ser) -> None:
@@ -18,11 +19,7 @@ class GUI:
         # make the structure
         self.window = tk.Tk()
         self.window.title("Boxman Fiddlejig")
-        # self.window.iconbitmap('think.ico')
-        # icon = tk.PhotoImage(file="think.ico")
-        # self.window.iconphoto(True, icon)
-        basedir = os.path.dirname(__file__)
-        self.window.iconbitmap(os.path.join(basedir, "think.ico"))
+        self.window.iconbitmap(ICON_PATH)
         self.canvases = []  # we might not need to save these just yet
         self.grids = []
 
@@ -219,8 +216,7 @@ class GUI:
 
     # Define a function for quit the window
     def quit_window(self, icon, item):
-        global SOFTKILL_MODEL
-        SOFTKILL_MODEL = True
+        constants.SOFTKILL_MODEL = True
         
         icon.stop()
         self.window.destroy()
@@ -234,8 +230,7 @@ class GUI:
     # Hide the window and show on the system taskbar
     def hide_window(self):
         self.window.withdraw()
-        icon_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "think.ico")
-        image=Image.open(icon_path)
+        image=Image.open(ICON_PATH)
         menu=(
             item('Quit', self.quit_window), 
             item('Show', self.show_window, default=True),)
