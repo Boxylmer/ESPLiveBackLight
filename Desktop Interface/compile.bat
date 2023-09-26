@@ -1,2 +1,2 @@
-call .\.venv\Scripts\activate
-pyinstaller --noconfirm --noconsole --add-data="think.ico;." --icon=think.ico compile_target.py
+call ..\.venv\Scripts\activate # expects .venv is in git repo root folder
+pyinstaller --noconfirm --noconsole --onedir --add-data="Application/resources;Application/resources" --icon=Application/resources/think.ico  compile_target.py
