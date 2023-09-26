@@ -800,9 +800,11 @@ class GUI:
         # make the structure
         self.window = tk.Tk()
         self.window.title("Boxman Fiddlejig")
-        self.window.iconbitmap('think.ico')
+        # self.window.iconbitmap('think.ico')
         # icon = tk.PhotoImage(file="think.ico")
         # self.window.iconphoto(True, icon)
+        basedir = os.path.dirname(__file__)
+        self.window.iconbitmap(os.path.join(basedir, "think.ico"))
         self.canvases = []  # we might not need to save these just yet
         self.grids = []
 
@@ -1001,10 +1003,10 @@ class GUI:
     def quit_window(self, icon, item):
         global SOFTKILL_MODEL
         SOFTKILL_MODEL = True
-        # for mbp in mbps: mbp.terminate_subprocess()
+        
         icon.stop()
         self.window.destroy()
-        exit()
+        # exit()
 
     # Define a function to show the window again
     def show_window(self, icon, item):
@@ -1052,10 +1054,7 @@ gui = GUI(orchestrator, settings, ser)
 def ping_model():
     global SOFTKILL_MODEL
     last_refresh_time = time.time()
-    while True:
-        if SOFTKILL_MODEL:
-            SOFTKILL_MODEL = False
-            exit()
+    while not SOFTKILL_MODEL:
         if (time.time() - last_refresh_time) * 1000 > REFRESH_TIME_MS:
             last_refresh_time = time.time()
 
@@ -1078,7 +1077,7 @@ threading.Thread(target=ping_model).start()
 
 def start():
     last_refresh_time = time.time()
-    while True:
+    while not SOFTKILL_MODEL:
         if (time.time() - last_refresh_time) * 1000 > GUI_POLLING_TIME_MS:
             last_refresh_time = time.time()
             
