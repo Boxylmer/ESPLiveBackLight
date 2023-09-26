@@ -1,6 +1,9 @@
 /.venv
 /dist/*
 /build/*
+/Desktop Interface/__pycache__/*
+/Desktop Interface/build/*
+/Desktop Interface/dist/*
 __pycache__/*
 settings.json
 *.spec
