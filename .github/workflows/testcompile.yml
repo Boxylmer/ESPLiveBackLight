@@ -3,7 +3,7 @@ name: Build binary
 on: 
     push: 
         branches:
-            - main
+            - master
 
 
 jobs:
@@ -48,7 +48,7 @@ jobs:
             fi
 
             gh release create v0.0.1 release_artifacts/* --title "Release v0.0.1" --notes "Do not run this yet."
-            
+
 
 
 
