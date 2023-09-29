@@ -59,11 +59,17 @@ jobs:
           shell: pwsh
 
 
-        - name: Generate file list for release
-          run: |
-              $files = Get-ChildItem -Path .\release_artifacts\Boxman Fiddlejig\ -Recurse | ForEach-Object { $_.FullName }
-              $files -join "`n" | Out-File -Encoding utf8 files.txt
-          shell: pwsh
+        # - name: Generate file list for release
+        #   run: |
+        #     $files = Get-ChildItem -Path .\release_artifacts\Boxman Fiddlejig\ -Recurse | ForEach-Object { $_.FullName }
+        #     $files -join "`n" | Out-File -Encoding utf8 files.txt
+        #   shell: pwsh
+
+        # - name: Generate file list for release
+        #   run: |
+        #     $files = Get-ChildItem -Path .\release_artifacts\Boxman Fiddlejig\ -Recurse | ForEach-Object { $_.FullName }
+        #     $files -join "`n" | Out-File -Encoding utf8 files.txt
+        #   shell: pwsh
 
         # - name: Create release and upload binary
         #   env:
@@ -98,8 +104,10 @@ jobs:
             tag_name: $RELEASE_VERSION
             body: "Do not run this yet."
             token: ${{ secrets.RELEASE_TOKEN }}
-            files: .\files.txt
-            #   release_artifacts/Boxman Fiddlejig/*
+            files: |
+              release_artifacts/Boxman Fiddlejig/*
+              release_artifacts/Boxman Fiddlejig/giblets/*
+
 
 
         # - name: Set up release version
