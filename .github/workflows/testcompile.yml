@@ -22,7 +22,7 @@ jobs:
         - name: Install python deps
           run: |
             python -m venv .venv
-            .venv\Scripts\python -m pip install requirements.txt
+            .venv\Scripts\python -m pip install -r requirements.txt
 
         - name: Build pyinstaller executable
           run: | 
