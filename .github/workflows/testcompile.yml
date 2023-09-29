@@ -61,7 +61,11 @@ jobs:
             if (gh release view $env:RELEASE_VERSION) {
                gh release delete $env:RELEASE_VERSION --yes
             }
-            gh release create $env:RELEASE_VERSION release_artifacts/* --title "Release $env:RELEASE_VERSION" --notes "Do not run this yet."
+            # gh release create $env:RELEASE_VERSION release_artifacts/* --title "Release $env:RELEASE_VERSION" --notes "Do not run this yet."
+            $files = Get-ChildItem -Path release_artifacts -File
+            $fileArgs = $files.FullName -join " "
+
+            gh release create $env:RELEASE_VERSION $fileArgs --title "Release $env:RELEASE_VERSION" --notes "Do not run this yet."
           shell: pwsh
 
 
