@@ -37,6 +37,7 @@ jobs:
             
         - name: Set up release version
           run: echo "RELEASE_VERSION=v$(date +'%Y%m%d')" >> $GITHUB_ENV
+          shell: bash
 
 
 
