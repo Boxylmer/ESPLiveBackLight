@@ -1,0 +1,56 @@
+name: Build binary
+
+on: 
+    push: 
+        branches:
+            - main
+
+
+jobs:
+    build: 
+        runs-on: windows-latest
+
+        steps:
+        - name: Checkout repo
+          uses: actions\checkout@v2
+          
+        - name: Python 3.10 setup
+          uses: action\setup-python@v2
+          with: 
+            python-version: 3.8
+        
+        - name: Install python deps
+          run: |
+            python -m venv .venv
+            call .venv\Scripts\activate
+            pip install requirements.txt
+
+        - name: Build pyinstaller executable
+          run: | 
+            call .venv\Scripts\activate  # This is redundant
+            .\DesktopApp\compile.bat
+
+        - name: Prepare release files
+          run: |
+            mkdir release_artifacts
+            xcopy "DesktopApp\dist\Boxman Fiddlejig" "release_artifacts\Boxman Fiddlejig" /E /Y /I
+
+        - name: Create release and upload binary
+          env: 
+            GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          run: |
+            choco install gh --yes
+
+            echo "$GH_TOKEN" | gh auth login --with_token
+
+            if gh release view v0.0.1; then
+              gh release delete v0.0.1 --yes
+            fi
+
+            gh release create v0.0.1 release_artifacts/* --title "Release v0.0.1" --notes "Do not run this yet."
+            
+
+
+
+
+            

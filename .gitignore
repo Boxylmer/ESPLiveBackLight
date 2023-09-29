@@ -8,3 +8,4 @@ __pycache__/*
 settings.json
 *.spec
 __pycache__/
+/release_artifacts
