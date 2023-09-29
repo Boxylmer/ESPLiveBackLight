@@ -98,7 +98,7 @@ jobs:
             git push --tags
 
         - name: Archive release files
-          run: Compress-Archive -Path release_artifacts/Boxman Fiddlejig/* -DestinationPath release_artifacts/BoxmanFiddlejig.zip
+          run: Compress-Archive -Path "release_artifacts/Boxman Fiddlejig/*" -DestinationPath "release_artifacts/BoxmanFiddlejig.zip"
           shell: pwsh
 
         - name: Create and Upload Release
