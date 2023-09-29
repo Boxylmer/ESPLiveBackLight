@@ -14,8 +14,8 @@ jobs:
         - name: Checkout repo
           uses: actions/checkout@v2
           
-        - name: Python 3.10 setup
-          uses: action/setup-python@v2
+        - name: Python 3.8 setup
+          uses: actions/setup-python@v2
           with: 
             python-version: 3.8
         
