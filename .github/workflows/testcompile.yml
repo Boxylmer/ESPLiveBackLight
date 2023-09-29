@@ -42,7 +42,7 @@ jobs:
             echo "$GH_TOKEN" | gh auth login --with-token
         
             if gh release view v0.0.1; then
-            gh release delete v0.0.1 --yes
+                gh release delete v0.0.1 --yes
             fi
         
             gh release create v0.0.1 release_artifacts/* --title "Release v0.0.1" --notes "Do not run this yet."
