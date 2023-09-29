@@ -53,25 +53,39 @@ jobs:
         #     gh release create $RELEASE_VERSION release_artifacts/* --title "Release $RELEASE_VERSION" --notes "Do not run this yet."
         #   shell: bash
 
-        - name: Create release and upload binary
-          env:
-            GH_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+        - name: List files in release_artifacts
           run: |
-            Write-Output "Using RELEASE_VERSION: $env:RELEASE_VERSION"
-
-            if (gh release view $env:RELEASE_VERSION) {
-               gh release delete $env:RELEASE_VERSION --yes
-            }
-
-            $files = Get-ChildItem -Path .\release_artifacts\ -Recurse -File | ForEach-Object { $_.FullName }
-            $fileList = $files -join " "
-            # gh release create $env:RELEASE_VERSION release_artifacts/* --title "Release $env:RELEASE_VERSION" --notes "Do not run this yet."
-
-            # $files = Get-ChildItem -Path release_artifacts -File
-            # $fileArgs = $files.FullName -join " "
-
-            gh release create $env:RELEASE_VERSION $fileArgs --title "Release $env:RELEASE_VERSION" --notes "Do not run this yet."
+            Get-ChildItem -Path .\release_artifacts\ -Recurse
           shell: pwsh
+
+        # - name: Create release and upload binary
+        #   env:
+        #     GH_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+        #   run: |
+        #     Write-Output "Using RELEASE_VERSION: $env:RELEASE_VERSION"
+
+        #     if (gh release view $env:RELEASE_VERSION) {
+        #        gh release delete $env:RELEASE_VERSION --yes
+        #     }
+
+        #     $files = Get-ChildItem -Path .\release_artifacts\ -Recurse -File | ForEach-Object { $_.FullName }
+        #     $fileList = $files -join " "
+        #     # gh release create $env:RELEASE_VERSION release_artifacts/* --title "Release $env:RELEASE_VERSION" --notes "Do not run this yet."
+
+        #     # $files = Get-ChildItem -Path release_artifacts -File
+        #     # $fileArgs = $files.FullName -join " "
+
+        #     gh release create $env:RELEASE_VERSION $fileArgs --title "Release $env:RELEASE_VERSION" --notes "Do not run this yet."
+        #   shell: pwsh
+
+        - name: Create and Upload Release
+          uses: softprops/action-gh-release@v1
+          with:
+            name: Release ${{ env.RELEASE_VERSION }}
+            body: "Do not run this yet."
+            token: ${{ secrets.RELEASE_TOKEN }}
+            files: |
+              release_artifacts/Boxman Fiddlejig/*
 
 
         # - name: Set up release version
