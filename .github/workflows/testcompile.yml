@@ -33,21 +33,41 @@ jobs:
             mkdir release_artifacts
             xcopy "DesktopApp\dist\Boxman Fiddlejig" "release_artifacts\Boxman Fiddlejig" /E /Y /I
 
-        - name: Create release and upload binary
-        #   env: 
-        #     GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          run: |
-            # choco install gh --yes
+        # - name: Create release and upload binary
+        # #   env: 
+        # #     GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        #   run: |
+        #     # choco install gh --yes
         
-            # echo "$GH_TOKEN" | gh auth login --with-token
-            gh auth login --with-token <<<"${{ secrets.GITHUB_TOKEN }}"
-            if gh release view v0.0.1; then
-                gh release delete v0.0.1 --yes
-            fi
+        #     # echo "$GH_TOKEN" | gh auth login --with-token
+        #     gh auth login --with-token <<<"${{ secrets.GITHUB_TOKEN }}"
+        #     if gh release view v0.0.1; then
+        #         gh release delete v0.0.1 --yes
+        #     fi
         
-            gh release create v0.0.1 release_artifacts/* --title "Release v0.0.1" --notes "Do not run this yet."
-          shell: bash
+        #     gh release create v0.0.1 release_artifacts/* --title "Release v0.0.1" --notes "Do not run this yet."
+        #   shell: bash
 
+        - name: Set up release version
+          id: version
+          run: echo "::set-output name=version::v$(date +'%Y%m%d')"
+  
+        - name: Create Release
+          id: create_release
+          uses: actions/create-release@v1
+          with:
+            tag_name: ${{ steps.version.outputs.version }}
+            release_name: Release ${{ steps.version.outputs.version }}
+            draft: false
+            prerelease: false
+          env:
+            GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  
+        - name: Upload artifacts to the release
+          uses: actions/upload-artifact@v2
+          with:
+            name: my-artifacts
+            path: release_artifacts/
 
 
 
