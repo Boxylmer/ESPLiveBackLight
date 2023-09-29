@@ -42,8 +42,9 @@ jobs:
 
 
         - name: Create release and upload binary
+          env:
+            GH_TOKEN: ${{ secrets.RELEASE_TOKEN }}
           run: |
-            gh auth login --with-token <<<"${{ secrets.GITHUB_TOKEN }}"
             echo "Using RELEASE_VERSION: $RELEASE_VERSION"
             if gh release view $RELEASE_VERSION; then
                 gh release delete $RELEASE_VERSION --yes
