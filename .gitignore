@@ -1,9 +1,11 @@
 /.venv
 /dist/*
 /build/*
-/Desktop Interface/__pycache__/*
-/Desktop Interface/build/*
-/Desktop Interface/dist/*
+/DesktopApp/__pycache__/*
+/DesktopApp/build/*
+/DesktopApp/dist/*
 __pycache__/*
 settings.json
 *.spec
+__pycache__/
+/release_artifacts
