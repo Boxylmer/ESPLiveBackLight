@@ -12,10 +12,10 @@ jobs:
 
         steps:
         - name: Checkout repo
-          uses: actions/checkout@v2
+          uses: actions/checkout@v3
           
         - name: Python 3.8 setup
-          uses: actions/setup-python@v2
+          uses: actions/setup-python@v4
           with: 
             python-version: 3.8
         
@@ -58,12 +58,17 @@ jobs:
             GH_TOKEN: ${{ secrets.RELEASE_TOKEN }}
           run: |
             Write-Output "Using RELEASE_VERSION: $env:RELEASE_VERSION"
+
             if (gh release view $env:RELEASE_VERSION) {
                gh release delete $env:RELEASE_VERSION --yes
             }
+
+            $files = Get-ChildItem -Path .\release_artifacts\ -Recurse -File | ForEach-Object { $_.FullName }
+            $fileList = $files -join " "
             # gh release create $env:RELEASE_VERSION release_artifacts/* --title "Release $env:RELEASE_VERSION" --notes "Do not run this yet."
-            $files = Get-ChildItem -Path release_artifacts -File
-            $fileArgs = $files.FullName -join " "
+
+            # $files = Get-ChildItem -Path release_artifacts -File
+            # $fileArgs = $files.FullName -join " "
 
             gh release create $env:RELEASE_VERSION $fileArgs --title "Release $env:RELEASE_VERSION" --notes "Do not run this yet."
           shell: pwsh
