@@ -5,7 +5,6 @@ on:
         branches:
             - master
 
-
 jobs:
     build: 
         runs-on: windows-latest
@@ -40,56 +39,6 @@ jobs:
           shell: bash
 
 
-
-        # - name: Create release and upload binary
-        #   env:
-        #     GH_TOKEN: ${{ secrets.RELEASE_TOKEN }}
-        #   run: |
-        #     echo "Using RELEASE_VERSION: $RELEASE_VERSION"
-        #     if gh release view $RELEASE_VERSION; then
-        #         gh release delete $RELEASE_VERSION --yes
-        #     fi
-        
-        #     gh release create $RELEASE_VERSION release_artifacts/* --title "Release $RELEASE_VERSION" --notes "Do not run this yet."
-        #   shell: bash
-
-        - name: List files in release_artifacts
-          run: |
-            Get-ChildItem -Path .\release_artifacts\ -Recurse
-          shell: pwsh
-
-
-        # - name: Generate file list for release
-        #   run: |
-        #     $files = Get-ChildItem -Path .\release_artifacts\Boxman Fiddlejig\ -Recurse | ForEach-Object { $_.FullName }
-        #     $files -join "`n" | Out-File -Encoding utf8 files.txt
-        #   shell: pwsh
-
-        # - name: Generate file list for release
-        #   run: |
-        #     $files = Get-ChildItem -Path .\release_artifacts\Boxman Fiddlejig\ -Recurse | ForEach-Object { $_.FullName }
-        #     $files -join "`n" | Out-File -Encoding utf8 files.txt
-        #   shell: pwsh
-
-        # - name: Create release and upload binary
-        #   env:
-        #     GH_TOKEN: ${{ secrets.RELEASE_TOKEN }}
-        #   run: |
-        #     Write-Output "Using RELEASE_VERSION: $env:RELEASE_VERSION"
-
-        #     if (gh release view $env:RELEASE_VERSION) {
-        #        gh release delete $env:RELEASE_VERSION --yes
-        #     }
-
-        #     $files = Get-ChildItem -Path .\release_artifacts\ -Recurse -File | ForEach-Object { $_.FullName }
-        #     $fileList = $files -join " "
-        #     # gh release create $env:RELEASE_VERSION release_artifacts/* --title "Release $env:RELEASE_VERSION" --notes "Do not run this yet."
-
-        #     # $files = Get-ChildItem -Path release_artifacts -File
-        #     # $fileArgs = $files.FullName -join " "
-
-        #     gh release create $env:RELEASE_VERSION $fileArgs --title "Release $env:RELEASE_VERSION" --notes "Do not run this yet."
-        #   shell: pwsh
         - name: Create tag
           run: |
             git config user.name "GitHub Actions"
@@ -113,28 +62,6 @@ jobs:
             #   release_artifacts/Boxman Fiddlejig/giblets/*
 
 
-
-        # - name: Set up release version
-        #   id: version
-        #   run: echo "::set-output name=version::v$(date +'%Y%m%d')"
-
-  
-        # - name: Create Release
-        #   id: create_release
-        #   uses: actions/create-release@v1
-        #   with:
-        #     tag_name: ${{ steps.version.outputs.version }}
-        #     release_name: Release ${{ steps.version.outputs.version }}
-        #     draft: false
-        #     prerelease: false
-        #   env:
-        #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-  
-        # - name: Upload artifacts to the release
-        #   uses: actions/upload-artifact@v3
-        #   with:
-        #     name: my-artifacts
-        #     path: release_artifacts/
 
 
 
