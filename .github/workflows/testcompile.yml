@@ -22,13 +22,13 @@ jobs:
         - name: Install python deps
           run: |
             python -m venv .venv
-            call .venv\Scripts\activate
-            pip install requirements.txt
+            .venv\Scripts\python -m pip install requirements.txt
 
         - name: Build pyinstaller executable
           run: | 
-            call .venv\Scripts\activate  # This is redundant
-            .\DesktopApp\compile.bat
+            # call .venv\Scripts\activate  # This is redundant
+            # .\DesktopApp\compile.bat
+            .venv\Scripts\python .\DesktopApp\compile.py
 
         - name: Prepare release files
           run: |
