@@ -37,7 +37,7 @@ jobs:
           env: 
             GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           run: |
-            choco install gh --yes
+            # choco install gh --yes
         
             echo "$GH_TOKEN" | gh auth login --with-token
         
