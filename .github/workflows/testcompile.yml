@@ -83,11 +83,12 @@ jobs:
             git config user.email "actions@github.com"
             git tag $RELEASE_VERSION
             git push --tags
-            
+
         - name: Create and Upload Release
           uses: softprops/action-gh-release@v1
           with:
             name: Release ${{ env.RELEASE_VERSION }}
+            tag_name: $RELEASE_VERSION
             body: "Do not run this yet."
             token: ${{ secrets.RELEASE_TOKEN }}
             files: |
