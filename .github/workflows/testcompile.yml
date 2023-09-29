@@ -41,17 +41,29 @@ jobs:
 
 
 
+        # - name: Create release and upload binary
+        #   env:
+        #     GH_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+        #   run: |
+        #     echo "Using RELEASE_VERSION: $RELEASE_VERSION"
+        #     if gh release view $RELEASE_VERSION; then
+        #         gh release delete $RELEASE_VERSION --yes
+        #     fi
+        
+        #     gh release create $RELEASE_VERSION release_artifacts/* --title "Release $RELEASE_VERSION" --notes "Do not run this yet."
+        #   shell: bash
+
         - name: Create release and upload binary
           env:
             GH_TOKEN: ${{ secrets.RELEASE_TOKEN }}
           run: |
-            echo "Using RELEASE_VERSION: $RELEASE_VERSION"
-            if gh release view $RELEASE_VERSION; then
-                gh release delete $RELEASE_VERSION --yes
-            fi
-        
-            gh release create $RELEASE_VERSION release_artifacts/* --title "Release $RELEASE_VERSION" --notes "Do not run this yet."
-          shell: bash
+            Write-Output "Using RELEASE_VERSION: $env:RELEASE_VERSION"
+            if (gh release view $env:RELEASE_VERSION) {
+               gh release delete $env:RELEASE_VERSION --yes
+            }
+            gh release create $env:RELEASE_VERSION release_artifacts/* --title "Release $env:RELEASE_VERSION" --notes "Do not run this yet."
+          shell: pwsh
+
 
         # - name: Set up release version
         #   id: version
