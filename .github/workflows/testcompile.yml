@@ -97,6 +97,10 @@ jobs:
             git tag $RELEASE_VERSION
             git push --tags
 
+        - name: Archive release files
+          run: Compress-Archive -Path release_artifacts/Boxman Fiddlejig/* -DestinationPath release_artifacts/BoxmanFiddlejig.zip
+          shell: pwsh
+
         - name: Create and Upload Release
           uses: softprops/action-gh-release@v1
           with:
@@ -104,9 +108,9 @@ jobs:
             tag_name: $RELEASE_VERSION
             body: "Do not run this yet."
             token: ${{ secrets.RELEASE_TOKEN }}
-            files: |
-              release_artifacts/Boxman Fiddlejig/*
-              release_artifacts/Boxman Fiddlejig/giblets/*
+            files: release_artifacts/BoxmanFiddlejig.zip
+            #   release_artifacts/Boxman Fiddlejig/*
+            #   release_artifacts/Boxman Fiddlejig/giblets/*
 
 
 
