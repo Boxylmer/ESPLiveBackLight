@@ -38,6 +38,9 @@ jobs:
             git tag ${{ env.RELEASE_VERSION }}
             git push --tags
 
+        - name: Create release artifacts directory
+          run: |
+            mkdir -p release_artifacts
 
         # Prepare an installer release
         - name: Compile Inno Setup Script
@@ -46,11 +49,9 @@ jobs:
         
         - name: Archive installer files
           run: |
-            mkdir -p release_artifacts  # Ensure the directory exists
             Compress-Archive -Path "DesktopApp/Output/setup.exe" -DestinationPath "release_artifacts/BoxmanFiddlejigInstaller.zip"
           shell: pwsh
 
-          
         - name: Create and Upload Release
           uses: softprops/action-gh-release@v1
           with:
