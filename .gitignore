@@ -9,3 +9,4 @@ settings.json
 *.spec
 __pycache__/
 /release_artifacts
+DesktopApp/Output/*

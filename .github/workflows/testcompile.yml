@@ -27,17 +27,9 @@ jobs:
           run: | 
             .venv\Scripts\python .\DesktopApp\compile.py
 
-        - name: Prepare release files
-          run: |
-            mkdir release_artifacts
-            xcopy "DesktopApp\dist\Boxman Fiddlejig" "release_artifacts\Boxman Fiddlejig" /E /Y /I
-
-
-            
         - name: Set up release version
           run: echo "RELEASE_VERSION=v$(date +'%Y%m%d')" >> $GITHUB_ENV
           shell: bash
-
 
         - name: Create tag
           run: |
@@ -46,20 +38,48 @@ jobs:
             git tag ${{ env.RELEASE_VERSION }}
             git push --tags
 
-        - name: Archive release files
-          run: Compress-Archive -Path "release_artifacts/Boxman Fiddlejig/*" -DestinationPath "release_artifacts/BoxmanFiddlejig.zip"
+
+        # Prepare an installer release
+        - name: Setup Inno Setup
+          uses: crazy-max/ghaction-inno-setup@v3
+
+        - name: Compile Inno Setup Script
+          run: |
+            ISCC.exe ./DesktopApp/innosetup.iss
+        
+        - name: Archive installer files
+          run: |
+            Compress-Archive -Path "DesktopApp/Output/setup.exe" -DestinationPath "release_artifacts/BoxmanFiddlejigInstaller.zip"
           shell: pwsh
 
+          
         - name: Create and Upload Release
           uses: softprops/action-gh-release@v1
           with:
             name: Release ${{ env.RELEASE_VERSION }}
             tag_name: $RELEASE_VERSION
-            body: "Do not run this yet."
+            body: "Installer for Boxman Fiddlejig."
             token: ${{ secrets.RELEASE_TOKEN }}
-            files: release_artifacts/BoxmanFiddlejig.zip
-            #   release_artifacts/Boxman Fiddlejig/*
-            #   release_artifacts/Boxman Fiddlejig/giblets/*
+            files: release_artifacts/BoxmanFiddlejigInstaller.zip
+
+        # # prepare a direct release
+        # - name: Prepare release files
+        #   run: |
+        #     mkdir release_artifacts
+        #     xcopy "DesktopApp\dist\Boxman Fiddlejig" "release_artifacts\Boxman Fiddlejig" /E /Y /I
+
+        # - name: Archive release files
+        #   run: Compress-Archive -Path "release_artifacts/Boxman Fiddlejig/*" -DestinationPath "release_artifacts/BoxmanFiddlejig.zip"
+        #   shell: pwsh
+
+        # - name: Create and Upload Release
+        #   uses: softprops/action-gh-release@v1
+        #   with:
+        #     name: Release ${{ env.RELEASE_VERSION }}
+        #     tag_name: $RELEASE_VERSION
+        #     body: "Do not run this yet."
+        #     token: ${{ secrets.RELEASE_TOKEN }}
+        #     files: release_artifacts/BoxmanFiddlejig.zip
 
 
 

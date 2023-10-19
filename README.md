@@ -5,6 +5,9 @@ This is a work in progress that uses
 - the ESP8266 Microcontroller (using the very well written FastLED library)
 - the WS2812B led chip
 - 3D printing through FreeCAD
+- Circuit board design through KiCAD
+
+And for potential employers looking at this, look at all this cool CI/CD stuff!
 
 To provide a fast, fully customizable backlight that updates with the colors on the borders of your screen.
 
