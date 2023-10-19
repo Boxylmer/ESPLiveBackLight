@@ -7,7 +7,7 @@ on:
 
 jobs:
     build: 
-        runs-on: windows-latest
+        runs-on: windows-2022
 
         steps:
         - name: Checkout repo
@@ -40,15 +40,13 @@ jobs:
 
 
         # Prepare an installer release
-        # - name: Setup Inno Setup
-        #   uses: crazy-max/ghaction-inno-setup@v3
-
         - name: Compile Inno Setup Script
           run: |
             ISCC.exe ./DesktopApp/innosetup.iss
         
         - name: Archive installer files
           run: |
+            mkdir -p release_artifacts  # Ensure the directory exists
             Compress-Archive -Path "DesktopApp/Output/setup.exe" -DestinationPath "release_artifacts/BoxmanFiddlejigInstaller.zip"
           shell: pwsh
 
