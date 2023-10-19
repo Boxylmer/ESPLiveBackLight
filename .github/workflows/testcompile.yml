@@ -55,7 +55,7 @@ jobs:
           uses: softprops/action-gh-release@v1
           with:
             name: Release ${{ env.RELEASE_VERSION }}
-            tag_name: $RELEASE_VERSION
+            tag_name: ${{ env.RELEASE_VERSION }}
             body: "Installer for Boxman Fiddlejig."
             token: ${{ secrets.RELEASE_TOKEN }}
             files: release_artifacts/BoxmanFiddlejigInstaller.zip
