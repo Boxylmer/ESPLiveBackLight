@@ -40,8 +40,8 @@ jobs:
 
 
         # Prepare an installer release
-        - name: Setup Inno Setup
-          uses: crazy-max/ghaction-inno-setup@v3
+        # - name: Setup Inno Setup
+        #   uses: crazy-max/ghaction-inno-setup@v3
 
         - name: Compile Inno Setup Script
           run: |
