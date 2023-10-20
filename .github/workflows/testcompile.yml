@@ -49,7 +49,7 @@ jobs:
         
         - name: Archive installer files
           run: |
-            Compress-Archive -Path "DesktopApp/Output/setup.exe" -DestinationPath "release_artifacts/BoxmanFiddlejigInstaller.zip"
+            Compress-Archive -Path "DesktopApp/Output/Boxman Installer.exe" -DestinationPath "release_artifacts/BoxmanFiddlejigInstaller.zip"
           shell: pwsh
 
         - name: Create and Upload Release

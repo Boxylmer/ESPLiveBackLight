@@ -25,7 +25,7 @@ DisableProgramGroupPage=yes
 ; Remove the following line to run in administrative install mode (install for all users.)
 PrivilegesRequired=lowest
 PrivilegesRequiredOverridesAllowed=dialog
-OutputBaseFilename=setup
+OutputBaseFilename=Boxman Installer
 ; SetupIconFile=C:\git\ESPLiveBackLight\DesktopApp\dist\Boxman Fiddlejig\giblets\Application\resources\think.ico
 SetupIconFile="{#SourceDir}\giblets\Application\resources\think.ico"
 Compression=lzma
