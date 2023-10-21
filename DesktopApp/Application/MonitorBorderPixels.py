@@ -122,14 +122,14 @@ class MonitorBorderPixels:
 
     def get_top(self): 
         if self.enabled: return self.pix_top
-        else: return []
+        else: return np.array([])
     def get_bottom(self): 
         if self.enabled: return self.pix_bottom
-        else: return []
+        else: return np.array([])
     def get_left(self): 
         if self.enabled: return self.pix_left
-        else: return []
+        else: return np.array([])
     def get_right(self): 
         if self.enabled: return self.pix_right
-        else: return []
+        else: return np.array([])
 

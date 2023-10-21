@@ -334,29 +334,35 @@ class MonitorOrchestrator:
 
             if (self.path_mode == PATH_ORDERS.CUSTOM) and (self.custom_order_edge_directions[i] == -1):
                 if side == 'u':
-                    rgbrow = np.flip(row)
+                    rgbrow = self.flip_row(row)
                 elif side == 'd':
                     rgbrow = row
                 elif side == 'l':
                     rgbrow = row
                 elif side == 'r':
-                    rgbrow = np.flip(row)
+                    rgbrow = self.flip_row(row)
             else:
                 if side == 'u':
                     rgbrow = row
                 elif side == 'd':
-                    rgbrow = np.flip(row)
+                    rgbrow = self.flip_row(row)
                 elif side == 'l':
-                    rgbrow = np.flip(row)
+                    rgbrow = self.flip_row(row)
                 elif side == 'r':
                     rgbrow = row
                 
                 # logic here for states, todo. doing it here allows for easy "skips" later if we want to disable some rows
             for colorval in rgbrow:
-                data.append(round(colorval[2]))
-                data.append(round(colorval[1]))
                 data.append(round(colorval[0]))
+                data.append(round(colorval[1]))
+                data.append(round(colorval[2]))
    
         remove_info_tokens(data)
         data.append(MICROCHIP_STOP_BYTE)
         return data
+
+    @classmethod
+    def flip_row(cls, row):
+        reshaped = row.reshape(-1, 3)
+        flip = np.flip(reshaped, axis=0)
+        return flip
