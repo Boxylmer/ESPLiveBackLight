@@ -7,11 +7,7 @@ This is a completed-ish work that uses
 - 3D printing through FreeCAD
 - Circuit board design through KiCAD
 
-And for potential employers looking at this, look at all this cool CI/CD stuff!
-
-To provide a fast, fully customizable backlight that updates with the colors on the borders of your screen.
-
-It aims to consume as little CPU as possible and not compete with GPU resources. 
+Provides a fast, fully customizable backlight that updates with the colors on the margin of your screen. 
 
 Features and todo
 
